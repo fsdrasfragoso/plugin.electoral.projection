@@ -1,0 +1,252 @@
+<?php
+
+namespace Fragososoftware\ProjecaoWp;
+
+use Fragososoftware\ProjecaoSdk\Domain\Model\ProjectionRequest;
+use Fragososoftware\ProjecaoSdk\Domain\Model\CandidateProjection;
+use Fragososoftware\ProjecaoSdk\Domain\Exception\ValidationException;
+use Fragososoftware\ProjecaoSdk\Domain\Exception\AuthenticationException;
+use Fragososoftware\ProjecaoSdk\Domain\Exception\ApiException;
+use Fragososoftware\ProjecaoSdk\Domain\Exception\ConfigurationException;
+use Fragososoftware\ProjecaoSdk\Domain\Exception\ProjecaoException;
+use WP_Error;
+use WP_REST_Request;
+use WP_REST_Response;
+
+/**
+ * Proxy REST do WordPress: o navegador chama estes endpoints (mesma origem, com
+ * nonce) e o servidor repassa ao SDK usando o client_secret salvo. O segredo
+ * nunca trafega para o cliente.
+ */
+class Rest
+{
+    const NS = 'projecao/v1';
+
+    /** @var Settings */
+    private $settings;
+
+    public function __construct(Settings $settings)
+    {
+        $this->settings = $settings;
+    }
+
+    /**
+     * @return void
+     */
+    public function register()
+    {
+        add_action('rest_api_init', array($this, 'routes'));
+    }
+
+    /**
+     * @return void
+     */
+    public function routes()
+    {
+        $public = array($this, 'publicPermission');
+        $write = array($this, 'writePermission');
+
+        register_rest_route(self::NS, '/test', array(
+            'methods' => 'GET',
+            'permission_callback' => array($this, 'adminPermission'),
+            'callback' => array($this, 'test'),
+        ));
+
+        register_rest_route(self::NS, '/offices', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function () { return $this->run(function ($sdk) { return $sdk->offices(); }); },
+        ));
+
+        register_rest_route(self::NS, '/states', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) { return $sdk->states($this->filters($r, array('region_id'))); });
+            },
+        ));
+
+        register_rest_route(self::NS, '/elections', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) { return $sdk->elections($this->filters($r, array('political_office_id', 'state_id', 'year'))); });
+            },
+        ));
+
+        register_rest_route(self::NS, '/elections/(?P<id>\d+)', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) { return $sdk->election((int) $r['id']); });
+            },
+        ));
+
+        register_rest_route(self::NS, '/candidates', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) {
+                    return $sdk->candidates($this->filters($r, array('election_id', 'political_office_id', 'state_id', 'municipality_id', 'year')));
+                });
+            },
+        ));
+
+        register_rest_route(self::NS, '/units', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) {
+                    $stateId = $r->get_param('state_id');
+                    return $sdk->units((string) $r->get_param('scope'), $stateId !== null && $stateId !== '' ? (int) $stateId : null);
+                });
+            },
+        ));
+
+        register_rest_route(self::NS, '/preview', array(
+            'methods' => 'POST', 'permission_callback' => $write,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) { return $sdk->previewProjection($this->buildProjection($r->get_json_params())); });
+            },
+        ));
+
+        register_rest_route(self::NS, '/projections', array(
+            'methods' => 'POST', 'permission_callback' => $write,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) { return $sdk->sendProjection($this->buildProjection($r->get_json_params())); });
+            },
+        ));
+    }
+
+    // ------------------------------------------------------------------
+    // Permissões
+    // ------------------------------------------------------------------
+
+    public function publicPermission()
+    {
+        return true; // leitura pública (a calculadora é pública)
+    }
+
+    /**
+     * Escrita exige nonce válido (proteção CSRF) — o front sempre o envia.
+     *
+     * @param WP_REST_Request $request
+     * @return bool|WP_Error
+     */
+    public function writePermission(WP_REST_Request $request)
+    {
+        if (!wp_verify_nonce($request->get_header('X-WP-Nonce'), 'wp_rest')) {
+            return new WP_Error('rest_forbidden', __('Sessão inválida. Recarregue a página.', 'projecao-eleitoral'), array('status' => 403));
+        }
+        return true;
+    }
+
+    public function adminPermission()
+    {
+        return current_user_can('manage_options');
+    }
+
+    // ------------------------------------------------------------------
+    // Execução
+    // ------------------------------------------------------------------
+
+    /**
+     * Testa a conexão (admin): retorna o nome da aplicação autenticada.
+     *
+     * @return WP_REST_Response
+     */
+    public function test()
+    {
+        return $this->run(function ($sdk) {
+            return array('ok' => true, 'application' => $sdk->me());
+        });
+    }
+
+    /**
+     * Executa uma operação do SDK e traduz exceções em respostas REST.
+     *
+     * @param callable $fn  recebe o Client do SDK e devolve um array
+     * @return WP_REST_Response
+     */
+    private function run($fn)
+    {
+        try {
+            $sdk = (new SdkClient($this->settings))->make();
+            $data = call_user_func($fn, $sdk);
+            return new WP_REST_Response(array('data' => $data), 200);
+        } catch (ValidationException $e) {
+            return new WP_REST_Response(array('message' => $e->getMessage(), 'errors' => $e->getErrors()), 422);
+        } catch (AuthenticationException $e) {
+            return new WP_REST_Response(array('message' => $e->getMessage()), 401);
+        } catch (ConfigurationException $e) {
+            return new WP_REST_Response(array('message' => $e->getMessage()), 503);
+        } catch (ApiException $e) {
+            $status = $e->getStatusCode() >= 400 ? $e->getStatusCode() : 502;
+            return new WP_REST_Response(array('message' => $e->getMessage()), $status);
+        } catch (ProjecaoException $e) {
+            return new WP_REST_Response(array('message' => $e->getMessage()), 502);
+        }
+    }
+
+    /**
+     * Lê apenas as chaves informadas da query string.
+     *
+     * @param WP_REST_Request $request
+     * @param string[] $keys
+     * @return array
+     */
+    private function filters(WP_REST_Request $request, array $keys)
+    {
+        $filters = array();
+        foreach ($keys as $key) {
+            $value = $request->get_param($key);
+            if ($value !== null && $value !== '') {
+                $filters[$key] = $value;
+            }
+        }
+        return $filters;
+    }
+
+    /**
+     * Monta um ProjectionRequest do SDK a partir do payload recebido do front.
+     *
+     * @param array|null $params
+     * @return ProjectionRequest
+     */
+    private function buildProjection($params)
+    {
+        $params = is_array($params) ? $params : array();
+
+        $req = ProjectionRequest::make()
+            ->setElectionId(isset($params['election_id']) ? (int) $params['election_id'] : 0)
+            ->setScope(isset($params['scope']) ? (string) $params['scope'] : '');
+
+        if (!empty($params['external_code'])) {
+            $req->setExternalCode((string) $params['external_code']);
+        }
+        if (!empty($params['title'])) {
+            $req->setTitle((string) $params['title']);
+        }
+        if (!empty($params['description'])) {
+            $req->setDescription((string) $params['description']);
+        }
+        if (!empty($params['analyzed_at'])) {
+            $req->setAnalyzedAt((string) $params['analyzed_at']);
+        }
+        if (!empty($params['analyst']) && is_array($params['analyst'])) {
+            $req->setAnalyst(
+                isset($params['analyst']['name']) ? $params['analyst']['name'] : null,
+                isset($params['analyst']['email']) ? $params['analyst']['email'] : null
+            );
+        }
+
+        $candidates = isset($params['candidates']) && is_array($params['candidates']) ? $params['candidates'] : array();
+        foreach ($candidates as $entry) {
+            if (!isset($entry['candidate_id'])) {
+                continue;
+            }
+            $candidate = CandidateProjection::make((int) $entry['candidate_id']);
+            $units = isset($entry['units']) && is_array($entry['units']) ? $entry['units'] : array();
+            foreach ($units as $unitId => $pct) {
+                $candidate->setUnit((int) $unitId, (float) $pct);
+            }
+            $req->addCandidate($candidate);
+        }
+
+        return $req;
+    }
+}
