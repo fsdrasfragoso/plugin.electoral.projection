@@ -14,6 +14,20 @@
         municipio: 'Município'
     };
 
+    // Títulos e descrições dos cards de escopo (etapa "como fazer a análise").
+    var SCOPE_TITLES = {
+        regiao: 'Por região do país',
+        estado: 'Por estado',
+        regiao_estado: 'Por região do estado',
+        municipio: 'Por município'
+    };
+    var SCOPE_DESC = {
+        regiao: 'Agrupa os estados nas 5 regiões — menos passos.',
+        estado: 'Estado por estado.',
+        regiao_estado: 'Agrupa os municípios em macrorregiões — bem menos passos.',
+        municipio: 'Cidade por cidade: mais preciso, porém com mais passos.'
+    };
+
     // UFs por região do país (IBGE) — para iluminar o mapa no escopo "região".
     var REGION_UFS = {
         'Norte': ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
@@ -51,10 +65,10 @@
     var el = {
         error: q('[data-pc-error]'),
         loading: q('[data-pc-loading]'),
-        office: q('[data-pc-office]'),
+        offices: q('[data-pc-offices]'),
         stateWrap: q('[data-pc-state-wrap]'),
         state: q('[data-pc-state]'),
-        scope: q('[data-pc-scope]'),
+        scopes: q('[data-pc-scopes]'),
         candidates: q('[data-pc-candidates]'),
         result: q('[data-pc-result]'),
         ranking: q('[data-pc-ranking]'),
@@ -137,19 +151,39 @@
         return o;
     }
 
-    // ---- Etapa 1: cargos ----
+    // ---- Etapa 1: cargo (cards com radio) ----
     function loadOffices() {
         loading(true); setError('');
         api('/offices').then(function (offices) {
             state.offices = offices;
-            el.office.innerHTML = '';
-            offices.forEach(function (o) { el.office.appendChild(option(o.id, o.name)); });
+            renderOfficeCards();
             onOfficeChange();
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
     }
 
+    function officeDesc(o) {
+        if (o.sphere === 'estadual') { return 'Eleição estadual — escolha o estado.'; }
+        if (o.sphere === 'municipal') { return 'Eleição municipal.'; }
+        return 'Eleição nacional.';
+    }
+
+    function renderOfficeCards() {
+        el.offices.innerHTML = '';
+        state.offices.forEach(function (o, i) {
+            var card = document.createElement('label');
+            card.className = 'projecao-calc__card';
+            card.innerHTML =
+                '<input type="radio" name="pc-office" value="' + o.id + '"' + (i === 0 ? ' checked' : '') + '>' +
+                '<span class="projecao-calc__card-body"><strong>' + esc(o.name) + '</strong>' +
+                '<small>' + esc(officeDesc(o)) + '</small></span>';
+            el.offices.appendChild(card);
+        });
+    }
+
     function currentOffice() {
-        var id = parseInt(el.office.value, 10);
+        var r = el.offices.querySelector('input[name="pc-office"]:checked');
+        if (!r) { return null; }
+        var id = parseInt(r.value, 10);
         for (var i = 0; i < state.offices.length; i++) {
             if (state.offices[i].id === id) { return state.offices[i]; }
         }
@@ -179,28 +213,51 @@
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
     }
 
-    // ---- Etapa 2: resolve eleição, escopos e candidatos ----
-    function goToStep2() {
+    // ---- Etapa 2: escopo (cards) — resolve a eleição e mostra "como analisar" ----
+    function goToScopeStep() {
         var office = currentOffice();
-        if (!office) { return; }
+        if (!office) { setError('Selecione o cargo.'); return; }
         state.stateId = office.requires_state ? parseInt(el.state.value, 10) : null;
         state.stateUf = (state.stateId && state.statesById) ? state.statesById[state.stateId] : null;
+        if (office.requires_state && !state.stateId) { setError('Selecione o estado.'); return; }
 
         loading(true); setError('');
-
         api('/elections', { query: { political_office_id: office.id, state_id: state.stateId || '' } }).then(function (elections) {
             if (!elections.length) { throw new Error('Nenhuma eleição disponível para este cargo.'); }
             state.electionId = elections[0].id;
             return api('/elections/' + state.electionId);
         }).then(function (election) {
             state.scopes = (election.rules && election.rules.scopes) ? election.rules.scopes : ['estado'];
-            el.scope.innerHTML = '';
-            state.scopes.forEach(function (sc) { el.scope.appendChild(option(sc, SCOPE_LABELS[sc] || sc)); });
-            return api('/candidates', { query: { election_id: state.electionId } });
-        }).then(function (candidates) {
+            renderScopeCards();
+            step(2);
+        }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
+    }
+
+    function renderScopeCards() {
+        el.scopes.innerHTML = '';
+        state.scopes.forEach(function (sc, i) {
+            var card = document.createElement('label');
+            card.className = 'projecao-calc__card';
+            card.innerHTML =
+                '<input type="radio" name="pc-scope" value="' + sc + '"' + (i === 0 ? ' checked' : '') + '>' +
+                '<span class="projecao-calc__card-body"><strong>' + esc(SCOPE_TITLES[sc] || sc) + '</strong>' +
+                '<small>' + esc(SCOPE_DESC[sc] || '') + '</small></span>';
+            el.scopes.appendChild(card);
+        });
+    }
+
+    function currentScope() {
+        var r = el.scopes.querySelector('input[name="pc-scope"]:checked');
+        return r ? r.value : (state.scopes[0] || 'estado');
+    }
+
+    // ---- Etapa 3: candidatos ----
+    function goToCandidatesStep() {
+        loading(true); setError('');
+        api('/candidates', { query: { election_id: state.electionId } }).then(function (candidates) {
             state.candidates = candidates;
             renderCandidates();
-            step(2);
+            step(3);
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
     }
 
@@ -289,17 +346,16 @@
         }
     }
 
-    // ---- Etapa 3: projeção unidade por unidade (mesma estrutura do front Laravel) ----
-    function goToStep3() {
+    // ---- Etapa 4: projeção unidade por unidade (mesma estrutura do front Laravel) ----
+    function goToProjectionStep() {
         var checked = el.candidates.querySelectorAll('input[type=checkbox]:checked');
         state.selected = [];
         for (var i = 0; i < checked.length; i++) { state.selected.push(parseInt(checked[i].value, 10)); }
         if (state.selected.length < 2) { setError('Selecione ao menos 2 candidatos.'); return; }
 
-        state.scope = el.scope.value;
+        state.scope = currentScope();
         loading(true); setError('');
-        // Cargo estadual (Governador): sempre limita ao estado da eleição,
-        // inclusive no escopo "estado" (1 unidade = o próprio estado).
+        // Cargo estadual (Governador): sempre limita ao estado da eleição.
         var query = { scope: state.scope };
         if (state.stateId) { query.state_id = state.stateId; }
         api('/units', { query: query }).then(function (units) {
@@ -310,7 +366,7 @@
             state.current = 0;
             show(el.result, false);
             renderUnit();
-            step(3);
+            step(4);
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
     }
 
@@ -589,7 +645,7 @@
     }
 
     // ---- Eventos ----
-    el.office.addEventListener('change', onOfficeChange);
+    el.offices.addEventListener('change', onOfficeChange);
     el.candidates.addEventListener('change', onCandidateToggle);
     el.rows.addEventListener('input', function (e) {
         var t = e.target;
@@ -602,8 +658,9 @@
         var t = e.target;
         if (t.hasAttribute('data-pc-next')) {
             var n = t.getAttribute('data-pc-next');
-            if (n === '2') { goToStep2(); }
-            else if (n === '3') { goToStep3(); }
+            if (n === '2') { goToScopeStep(); }
+            else if (n === '3') { goToCandidatesStep(); }
+            else if (n === '4') { goToProjectionStep(); }
         } else if (t.hasAttribute('data-pc-back')) {
             step(t.getAttribute('data-pc-back'));
         } else if (t.hasAttribute('data-pc-select-all')) {

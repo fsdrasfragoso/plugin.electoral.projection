@@ -4,7 +4,7 @@ Tags: eleições, projeções, calculadora, simulação
 Requires at least: 5.6
 Tested up to: 6.6
 Requires PHP: 7.0
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: Proprietary
 
 Calculadora de simulações e projeções eleitorais integrada ao seu tema. Basta informar o client_id e o client_secret da sua aplicação.
@@ -35,6 +35,9 @@ No painel da plataforma, em API → Aplicações. Cadastre os domínios do seu s
 Não. O SDK já vem embutido no plugin.
 
 == Changelog ==
+
+= 1.0.8 =
+* Cargo e escopo agora sao cards com radio (como na calculadora); escopo virou uma etapa propria antes dos candidatos.
 
 = 1.0.7 =
 * Correcao: Governador agora projeta dentro do estado da eleicao (escopo estado = 1 unidade).
