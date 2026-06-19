@@ -55,11 +55,27 @@
     function loading(on) { show(el.loading, on); }
     function esc(s) { var d = document.createElement('div'); d.textContent = (s == null ? '' : s); return d.innerHTML; }
 
+    function serialize(obj) {
+        var parts = [];
+        for (var k in obj) {
+            if (obj.hasOwnProperty(k) && obj[k] !== null && obj[k] !== undefined && obj[k] !== '') {
+                parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(obj[k]));
+            }
+        }
+        return parts.join('&');
+    }
+
     function api(path, opts) {
         opts = opts || {};
+        var url = PROJECAO_WP.restBase + path;
+        if (opts.query) {
+            var qs = serialize(opts.query);
+            // Permalink bonito → base termina em /wp-json/...; plano → contém ?rest_route=.
+            if (qs) { url += (PROJECAO_WP.restBase.indexOf('?') === -1 ? '?' : '&') + qs; }
+        }
         var headers = { 'X-WP-Nonce': PROJECAO_WP.nonce };
         if (opts.body) { headers['Content-Type'] = 'application/json'; }
-        return fetch(PROJECAO_WP.restBase + path, {
+        return fetch(url, {
             method: opts.method || 'GET',
             headers: headers,
             body: opts.body ? JSON.stringify(opts.body) : undefined
@@ -131,10 +147,8 @@
         state.stateId = office.requires_state ? parseInt(el.state.value, 10) : null;
 
         loading(true); setError('');
-        var filters = 'political_office_id=' + office.id;
-        if (state.stateId) { filters += '&state_id=' + state.stateId; }
 
-        api('/elections?' + filters).then(function (elections) {
+        api('/elections', { query: { political_office_id: office.id, state_id: state.stateId || '' } }).then(function (elections) {
             if (!elections.length) { throw new Error('Nenhuma eleição disponível para este cargo.'); }
             state.electionId = elections[0].id;
             return api('/elections/' + state.electionId);
@@ -142,7 +156,7 @@
             state.scopes = (election.rules && election.rules.scopes) ? election.rules.scopes : ['estado'];
             el.scope.innerHTML = '';
             state.scopes.forEach(function (sc) { el.scope.appendChild(option(sc, SCOPE_LABELS[sc] || sc)); });
-            return api('/candidates?election_id=' + state.electionId);
+            return api('/candidates', { query: { election_id: state.electionId } });
         }).then(function (candidates) {
             state.candidates = candidates;
             renderCandidates();
@@ -179,11 +193,11 @@
 
         state.scope = el.scope.value;
         loading(true); setError('');
-        var path = '/units?scope=' + encodeURIComponent(state.scope);
+        var query = { scope: state.scope };
         if (state.stateId && (state.scope === 'regiao_estado' || state.scope === 'municipio')) {
-            path += '&state_id=' + state.stateId;
+            query.state_id = state.stateId;
         }
-        api(path).then(function (units) {
+        api('/units', { query: query }).then(function (units) {
             state.units = units;
             renderGrid();
             step(3);
