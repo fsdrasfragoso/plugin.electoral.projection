@@ -49,7 +49,8 @@ final class ProjecaoSdk
             $http = new CurlHttpClient($config->getTimeout(), $verifySsl);
         }
 
-        $tokens = new TokenManager($config, $http);
+        $store = (isset($options['token_cache']) && is_array($options['token_cache'])) ? $options['token_cache'] : null;
+        $tokens = new TokenManager($config, $http, $store);
 
         return new Client($config, $http, $tokens);
     }

@@ -105,6 +105,8 @@
 .projecao-calc__flag { width: 84px; height: 84px; object-fit: cover; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.15); margin-bottom: .5rem; }
 .projecao-calc__unit-sub { display: inline-block; background: #1f2d3d; color: #fff; border-radius: 4px; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
 .projecao-calc__unit-name { margin: .5rem 0 .25rem; }
+.projecao-calc__tags { display: flex; flex-wrap: wrap; gap: .3rem; justify-content: center; margin-top: .6rem; }
+.projecao-calc__tag { font-size: .72rem; background: #fff; border: 1px solid var(--pc-border); border-radius: 999px; padding: .1rem .55rem; color: #444; }
 .projecao-calc__unit-tip { margin-top: 1rem; }
 
 .projecao-calc__cand-row { margin-bottom: .9rem; }

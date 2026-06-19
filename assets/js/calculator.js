@@ -23,6 +23,15 @@
         'Sul': ['PR', 'RS', 'SC']
     };
 
+    var UF_NAMES = {
+        AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará',
+        DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão',
+        MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais', PA: 'Pará',
+        PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí', RJ: 'Rio de Janeiro',
+        RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul', RO: 'Rondônia', RR: 'Roraima',
+        SC: 'Santa Catarina', SP: 'São Paulo', SE: 'Sergipe', TO: 'Tocantins'
+    };
+
     var state = {
         offices: [],
         office: null,
@@ -63,7 +72,8 @@
         unitNext: q('[data-pc-unit-next]'),
         preview: q('[data-pc-preview]'),
         save: q('[data-pc-save]'),
-        map: q('[data-pc-map]')
+        map: q('[data-pc-map]'),
+        tags: q('[data-pc-tags]')
     };
 
     function q(sel) { return root.querySelector(sel); }
@@ -288,10 +298,10 @@
 
         state.scope = el.scope.value;
         loading(true); setError('');
+        // Cargo estadual (Governador): sempre limita ao estado da eleição,
+        // inclusive no escopo "estado" (1 unidade = o próprio estado).
         var query = { scope: state.scope };
-        if (state.stateId && (state.scope === 'regiao_estado' || state.scope === 'municipio')) {
-            query.state_id = state.stateId;
-        }
+        if (state.stateId) { query.state_id = state.stateId; }
         api('/units', { query: query }).then(function (units) {
             state.units = units;
             if (!units.length) { throw new Error('Nenhuma unidade encontrada para este escopo.'); }
@@ -464,10 +474,28 @@
         else { drawNationalMap(u); }
     }
 
+    // Tags abaixo do mapa: estados da região (escopo região) ou municípios da
+    // macrorregião (escopo regiao_estado).
+    function renderTags(u) {
+        if (!el.tags) { return; }
+        var names = [];
+        if (state.scope === 'regiao') {
+            names = (REGION_UFS[u.label] || []).map(function (uf) { return UF_NAMES[uf] || uf; });
+        } else if (state.scope === 'regiao_estado') {
+            names = u.municipalities || [];
+        }
+        if (!names.length) { el.tags.innerHTML = ''; show(el.tags, false); return; }
+        el.tags.innerHTML = names.map(function (n) {
+            return '<span class="projecao-calc__tag">' + esc(n) + '</span>';
+        }).join('');
+        show(el.tags, true);
+    }
+
     function renderUnit() {
         var u = currentUnit();
         var last = state.current === state.units.length - 1;
         drawMap(u);
+        renderTags(u);
         el.unitName.textContent = u.label;
         el.unitSub.textContent = u.sub || '';
         el.unitSub.style.display = u.sub ? '' : 'none';

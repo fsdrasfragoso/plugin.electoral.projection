@@ -67,6 +67,9 @@ class Settings
             $clientSecret = trim($input['client_secret']);
         }
 
+        // Configuração mudou → limpa o cache (token + respostas) para refletir já.
+        self::flushCache();
+
         return array(
             'base_url' => $baseUrl !== '' ? $baseUrl : $this->defaults()['base_url'],
             'client_id' => $clientId,
@@ -74,6 +77,22 @@ class Settings
             'origin' => $origin,
             'timeout' => $timeout > 0 ? $timeout : 15,
         );
+    }
+
+    /**
+     * Limpa o token e as respostas cacheadas (transients) do plugin.
+     *
+     * @return void
+     */
+    public static function flushCache()
+    {
+        global $wpdb;
+        $wpdb->query(
+            "DELETE FROM {$wpdb->options}
+             WHERE option_name LIKE '\\_transient\\_pc\\_cache\\_%'
+                OR option_name LIKE '\\_transient\\_timeout\\_pc\\_cache\\_%'"
+        );
+        delete_transient('projecao_oauth_token');
     }
 
     /**

@@ -22,6 +22,9 @@ class Rest
 {
     const NS = 'projecao/v1';
 
+    /** TTL do cache de respostas de leitura (1 hora). */
+    const CACHE_TTL = 3600;
+
     /** @var Settings */
     private $settings;
 
@@ -54,34 +57,36 @@ class Rest
 
         register_rest_route(self::NS, '/offices', array(
             'methods' => 'GET', 'permission_callback' => $public,
-            'callback' => function () { return $this->run(function ($sdk) { return $sdk->offices(); }); },
+            'callback' => function (WP_REST_Request $r) {
+                return $this->cachedRun($r, 'offices', function ($sdk) { return $sdk->offices(); });
+            },
         ));
 
         register_rest_route(self::NS, '/states', array(
             'methods' => 'GET', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {
-                return $this->run(function ($sdk) use ($r) { return $sdk->states($this->filters($r, array('region_id'))); });
+                return $this->cachedRun($r, 'states', function ($sdk) use ($r) { return $sdk->states($this->filters($r, array('region_id'))); });
             },
         ));
 
         register_rest_route(self::NS, '/elections', array(
             'methods' => 'GET', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {
-                return $this->run(function ($sdk) use ($r) { return $sdk->elections($this->filters($r, array('political_office_id', 'state_id', 'year'))); });
+                return $this->cachedRun($r, 'elections', function ($sdk) use ($r) { return $sdk->elections($this->filters($r, array('political_office_id', 'state_id', 'year'))); });
             },
         ));
 
         register_rest_route(self::NS, '/elections/(?P<id>\d+)', array(
             'methods' => 'GET', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {
-                return $this->run(function ($sdk) use ($r) { return $sdk->election((int) $r['id']); });
+                return $this->cachedRun($r, 'election', function ($sdk) use ($r) { return $sdk->election((int) $r['id']); });
             },
         ));
 
         register_rest_route(self::NS, '/candidates', array(
             'methods' => 'GET', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {
-                return $this->run(function ($sdk) use ($r) {
+                return $this->cachedRun($r, 'candidates', function ($sdk) use ($r) {
                     return $sdk->candidates($this->filters($r, array('election_id', 'political_office_id', 'state_id', 'municipality_id', 'year')));
                 });
             },
@@ -90,7 +95,7 @@ class Rest
         register_rest_route(self::NS, '/units', array(
             'methods' => 'GET', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {
-                return $this->run(function ($sdk) use ($r) {
+                return $this->cachedRun($r, 'units', function ($sdk) use ($r) {
                     $stateId = $r->get_param('state_id');
                     return $sdk->units((string) $r->get_param('scope'), $stateId !== null && $stateId !== '' ? (int) $stateId : null);
                 });
@@ -154,6 +159,38 @@ class Rest
         return $this->run(function ($sdk) {
             return array('ok' => true, 'application' => $sdk->me());
         });
+    }
+
+    /**
+     * Como run(), mas cacheia a resposta de sucesso por CACHE_TTL (transient),
+     * evitando novas chamadas ao servidor para os mesmos parâmetros. Use apenas
+     * em leituras (GET).
+     *
+     * @param WP_REST_Request $request
+     * @param string $name  nome lógico do endpoint (compõe a chave de cache)
+     * @param callable $fn
+     * @return WP_REST_Response
+     */
+    private function cachedRun(WP_REST_Request $request, $name, $fn)
+    {
+        $params = array_merge(
+            (array) $request->get_url_params(),
+            (array) $request->get_query_params()
+        );
+        ksort($params);
+        $tname = 'pc_cache_'.md5($name.'|'.wp_json_encode($params));
+
+        $cached = get_transient($tname);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        $res = $this->run($fn);
+        if ($res instanceof WP_REST_Response && $res->get_status() === 200) {
+            set_transient($tname, $res, self::CACHE_TTL);
+        }
+
+        return $res;
     }
 
     /**

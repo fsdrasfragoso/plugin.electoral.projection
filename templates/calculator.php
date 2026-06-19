@@ -65,6 +65,7 @@ if (!defined('ABSPATH')) {
                 <h4 class="projecao-calc__unit-name" data-pc-unit-name></h4>
                 <div class="projecao-calc__muted" data-pc-unit-counter></div>
                 <div class="projecao-calc__muted projecao-calc__small" data-pc-unit-valid></div>
+                <div class="projecao-calc__tags" data-pc-tags hidden></div>
                 <p class="projecao-calc__muted projecao-calc__small projecao-calc__unit-tip">
                     <?php esc_html_e('A análise avança unidade por unidade até o resultado final.', 'projecao-eleitoral'); ?>
                 </p>

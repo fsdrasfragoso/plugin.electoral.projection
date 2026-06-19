@@ -39,6 +39,18 @@ class SdkClient
             array(
                 'timeout' => $this->settings->getTimeout(),
                 'origin' => $this->settings->getOrigin(),
+                // Reaproveita o token OAuth entre requisições (transient), evitando
+                // um POST /oauth/token a cada chamada do proxy.
+                'token_cache' => array(
+                    'load' => function () {
+                        $t = get_transient('projecao_oauth_token');
+                        return is_array($t) ? $t : null;
+                    },
+                    'save' => function ($data) {
+                        $ttl = isset($data['expires_at']) ? ((int) $data['expires_at'] - time() - 60) : 3000;
+                        set_transient('projecao_oauth_token', $data, max(60, $ttl));
+                    },
+                ),
             )
         );
     }

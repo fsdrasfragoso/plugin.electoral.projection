@@ -24,10 +24,21 @@ final class TokenManager
     /** @var int  epoch em que o token expira */
     private $expiresAt = 0;
 
-    public function __construct(Configuration $config, HttpClientInterface $http)
+    /**
+     * Cache persistente opcional do token (entre processos): array com as
+     * callables 'load' (=> ['access_token'=>, 'expires_at'=>]|null) e
+     * 'save' (recebe esse array). Permite reaproveitar o token entre
+     * requisições, evitando um POST /oauth/token a cada chamada.
+     *
+     * @var array|null
+     */
+    private $store;
+
+    public function __construct(Configuration $config, HttpClientInterface $http, $store = null)
     {
         $this->config = $config;
         $this->http = $http;
+        $this->store = (is_array($store) && isset($store['load'], $store['save'])) ? $store : null;
     }
 
     /**
@@ -40,6 +51,17 @@ final class TokenManager
         // 30s de folga para evitar usar um token prestes a expirar.
         if ($this->token !== null && time() < ($this->expiresAt - 30)) {
             return $this->token;
+        }
+
+        // Cache persistente (ex.: transient do WordPress).
+        if ($this->store !== null) {
+            $cached = call_user_func($this->store['load']);
+            if (is_array($cached) && !empty($cached['access_token'])
+                && time() < (((int) (isset($cached['expires_at']) ? $cached['expires_at'] : 0)) - 30)) {
+                $this->token = (string) $cached['access_token'];
+                $this->expiresAt = (int) $cached['expires_at'];
+                return $this->token;
+            }
         }
 
         return $this->fetch();
@@ -85,6 +107,14 @@ final class TokenManager
             $this->token = (string) $data['access_token'];
             $expiresIn = isset($data['expires_in']) ? (int) $data['expires_in'] : 3600;
             $this->expiresAt = time() + $expiresIn;
+
+            if ($this->store !== null) {
+                call_user_func($this->store['save'], array(
+                    'access_token' => $this->token,
+                    'expires_at' => $this->expiresAt,
+                ));
+            }
+
             return $this->token;
         }
 
