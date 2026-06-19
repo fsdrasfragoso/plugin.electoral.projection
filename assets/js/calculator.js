@@ -450,8 +450,9 @@
         }
     }
 
-    // Mapas municipais por estado (governador). UF -> arquivo SVG em assets/maps/.
-    var STATE_MAPS = { 'CE': 'maps/ce.svg' };
+    // Estados com mapa municipal disponível (assets/maps/<uf>.svg) — todos os 27.
+    var STATE_MAPS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+        'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
     var svgCache = {};
 
     function normName(s) {
@@ -463,8 +464,8 @@
     function stateMapUrl() {
         if (state.scope !== 'regiao_estado' && state.scope !== 'municipio') { return null; }
         var uf = state.stateUf ? String(state.stateUf).toUpperCase() : null;
-        if (!uf || !STATE_MAPS[uf]) { return null; }
-        return PROJECAO_WP.assetsUrl + STATE_MAPS[uf];
+        if (!uf || STATE_MAPS.indexOf(uf) === -1) { return null; }
+        return PROJECAO_WP.assetsUrl + 'maps/' + uf.toLowerCase() + '.svg';
     }
 
     function loadStateSvg(url, cb) {
