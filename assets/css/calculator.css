@@ -49,6 +49,15 @@
 .projecao-calc__btn:hover { filter: brightness(.95); }
 .projecao-calc__btn--ghost { background: transparent; color: var(--pc-accent); }
 
+.projecao-calc__cand-tools { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin: .25rem 0 .5rem; }
+.projecao-calc__link {
+    appearance: none; border: none; background: none; padding: 0; cursor: pointer;
+    color: var(--pc-accent); font: inherit; font-weight: 600; text-decoration: underline;
+}
+.projecao-calc__link:hover { filter: brightness(.9); }
+.projecao-calc__sep { color: var(--pc-muted); }
+.projecao-calc__cand-hint { color: var(--pc-muted); font-size: .85rem; font-weight: 400; margin-left: .25rem; }
+
 .projecao-calc__candidates {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

@@ -213,6 +213,36 @@
         });
     }
 
+    // Marca um candidato por partido (os demais ficam travados pela regra).
+    function selectAllCandidates() {
+        var cbs = el.candidates.querySelectorAll('input[type=checkbox]');
+        var taken = {};
+        for (var i = 0; i < cbs.length; i++) {
+            var cb = cbs[i];
+            var row = cb.parentNode;
+            var p = cb.getAttribute('data-party');
+            cb.disabled = false;
+            if (p && taken[p]) {
+                cb.checked = false;
+                cb.disabled = true;
+                if (row) { row.classList.add('is-disabled'); }
+            } else {
+                cb.checked = true;
+                if (row) { row.classList.remove('is-disabled'); }
+                if (p) { taken[p] = true; }
+            }
+        }
+    }
+
+    function clearCandidates() {
+        var cbs = el.candidates.querySelectorAll('input[type=checkbox]');
+        for (var i = 0; i < cbs.length; i++) {
+            cbs[i].checked = false;
+            cbs[i].disabled = false;
+            if (cbs[i].parentNode) { cbs[i].parentNode.classList.remove('is-disabled'); }
+        }
+    }
+
     // Impede selecionar dois candidatos do mesmo partido: ao marcar um, desabilita os demais do partido.
     function onCandidateToggle(e) {
         var cb = e.target;
@@ -452,6 +482,10 @@
             else if (n === '3') { goToStep3(); }
         } else if (t.hasAttribute('data-pc-back')) {
             step(t.getAttribute('data-pc-back'));
+        } else if (t.hasAttribute('data-pc-select-all')) {
+            selectAllCandidates();
+        } else if (t.hasAttribute('data-pc-clear')) {
+            clearCandidates();
         } else if (t.hasAttribute('data-pc-unit-prev')) {
             if (state.current > 0) { state.current--; setError(''); renderUnit(); }
         } else if (t.hasAttribute('data-pc-unit-next')) {

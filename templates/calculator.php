@@ -38,6 +38,12 @@ if (!defined('ABSPATH')) {
                 <select data-pc-scope></select>
             </label>
         </div>
+        <div class="projecao-calc__cand-tools">
+            <button type="button" class="projecao-calc__link" data-pc-select-all><?php esc_html_e('Selecionar todos', 'projecao-eleitoral'); ?></button>
+            <span class="projecao-calc__sep">·</span>
+            <button type="button" class="projecao-calc__link" data-pc-clear><?php esc_html_e('Limpar', 'projecao-eleitoral'); ?></button>
+            <span class="projecao-calc__cand-hint"><?php esc_html_e('(no máximo um candidato por partido)', 'projecao-eleitoral'); ?></span>
+        </div>
         <div class="projecao-calc__candidates" data-pc-candidates></div>
         <div class="projecao-calc__actions">
             <button type="button" class="projecao-calc__btn projecao-calc__btn--ghost" data-pc-back="1"><?php esc_html_e('Voltar', 'projecao-eleitoral'); ?></button>
