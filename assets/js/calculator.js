@@ -14,6 +14,15 @@
         municipio: 'Município'
     };
 
+    // UFs por região do país (IBGE) — para iluminar o mapa no escopo "região".
+    var REGION_UFS = {
+        'Norte': ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+        'Nordeste': ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+        'Centro-Oeste': ['DF', 'GO', 'MS', 'MT'],
+        'Sudeste': ['ES', 'MG', 'RJ', 'SP'],
+        'Sul': ['PR', 'RS', 'SC']
+    };
+
     var state = {
         offices: [],
         office: null,
@@ -25,7 +34,9 @@
         selected: [],      // ids selecionados
         units: [],
         matrix: {},        // matrix[unitId][candId] = %
-        current: 0         // índice da unidade atual
+        current: 0,        // índice da unidade atual
+        statesById: {},    // id do estado -> UF
+        stateUf: null      // UF do estado selecionado (cargos estaduais)
     };
 
     var el = {
@@ -51,7 +62,8 @@
         unitPrev: q('[data-pc-unit-prev]'),
         unitNext: q('[data-pc-unit-next]'),
         preview: q('[data-pc-preview]'),
-        save: q('[data-pc-save]')
+        save: q('[data-pc-save]'),
+        map: q('[data-pc-map]')
     };
 
     function q(sel) { return root.querySelector(sel); }
@@ -148,7 +160,9 @@
         loading(true);
         api('/states').then(function (states) {
             el.state.innerHTML = '';
+            state.statesById = {};
             states.forEach(function (s) {
+                state.statesById[s.id] = s.uf;
                 if (s.uf === 'EX') { return; } // governador não usa Exterior
                 el.state.appendChild(option(s.id, s.name + ' (' + s.uf + ')'));
             });
@@ -160,6 +174,7 @@
         var office = currentOffice();
         if (!office) { return; }
         state.stateId = office.requires_state ? parseInt(el.state.value, 10) : null;
+        state.stateUf = (state.stateId && state.statesById) ? state.statesById[state.stateId] : null;
 
         loading(true); setError('');
 
@@ -369,9 +384,35 @@
         }
     }
 
+    // UFs a iluminar no mapa conforme o escopo/unidade atual.
+    function unitUfs(u) {
+        if (state.scope === 'estado') { return u.sub ? [String(u.sub).toUpperCase()] : []; }
+        if (state.scope === 'regiao') { return REGION_UFS[u.label] || []; }
+        // macrorregião / município → ilumina o estado da eleição
+        return state.stateUf ? [String(state.stateUf).toUpperCase()] : [];
+    }
+
+    function drawMap(u) {
+        if (!el.map) { return; }
+        if (typeof BrMap === 'undefined') { el.map.style.display = 'none'; return; }
+        try {
+            el.map.innerHTML = '';
+            BrMap.Draw({
+                wrapper: '#pc-br-map',
+                selectStates: unitUfs(u),
+                cssFill: { selected: '#149ddd' },
+                responsive: true
+            });
+            el.map.style.display = '';
+        } catch (e) {
+            el.map.style.display = 'none';
+        }
+    }
+
     function renderUnit() {
         var u = currentUnit();
         var last = state.current === state.units.length - 1;
+        drawMap(u);
         el.unitName.textContent = u.label;
         el.unitSub.textContent = u.sub || '';
         el.unitSub.style.display = u.sub ? '' : 'none';

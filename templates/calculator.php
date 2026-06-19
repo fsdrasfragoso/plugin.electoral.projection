@@ -47,7 +47,7 @@ if (!defined('ABSPATH')) {
         <div class="projecao-calc__candidates" data-pc-candidates></div>
         <div class="projecao-calc__actions">
             <button type="button" class="projecao-calc__btn projecao-calc__btn--ghost" data-pc-back="1"><?php esc_html_e('Voltar', 'projecao-eleitoral'); ?></button>
-            <button type="button" class="projecao-calc__btn" data-pc-next="3"><?php esc_html_e('Montar grade', 'projecao-eleitoral'); ?></button>
+            <button type="button" class="projecao-calc__btn" data-pc-next="3"><?php esc_html_e('Avançar', 'projecao-eleitoral'); ?></button>
         </div>
     </section>
 
@@ -59,6 +59,7 @@ if (!defined('ABSPATH')) {
 
         <div class="projecao-calc__proj">
             <div class="projecao-calc__unit-panel">
+                <div class="projecao-calc__map" id="pc-br-map" data-pc-map></div>
                 <img class="projecao-calc__flag" data-pc-flag src="" alt="" hidden>
                 <span class="projecao-calc__unit-sub" data-pc-unit-sub></span>
                 <h4 class="projecao-calc__unit-name" data-pc-unit-name></h4>

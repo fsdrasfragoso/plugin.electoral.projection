@@ -42,10 +42,19 @@ class Shortcode
             PROJECAO_WP_VERSION
         );
 
+        // Mapa do Brasil (brmap.js, BSD-2) — dependência do calculator.
+        wp_register_script(
+            'projecao-brmap',
+            PROJECAO_WP_URL . 'assets/vendor/brmap/brmap.js',
+            array(),
+            '1.1.0',
+            true
+        );
+
         wp_register_script(
             'projecao-calculadora',
             PROJECAO_WP_URL . 'assets/js/calculator.js',
-            array(),
+            array('projecao-brmap'),
             PROJECAO_WP_VERSION,
             true
         );
