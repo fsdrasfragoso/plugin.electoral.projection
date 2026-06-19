@@ -56,8 +56,20 @@
     margin: .75rem 0;
 }
 .projecao-calc__cand { display: flex; align-items: center; gap: .5rem; font-weight: 500; }
-.projecao-calc__cand input { min-width: 0; }
+.projecao-calc__cand input { min-width: 0; flex: 0 0 auto; }
+.projecao-calc__cand.is-disabled { opacity: .4; }
+.projecao-calc__cand-info { display: inline-flex; align-items: center; gap: .4rem; }
 .projecao-calc__swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: .4rem; vertical-align: middle; }
+
+.projecao-calc__avatar {
+    width: 30px; height: 30px; border-radius: 50%; object-fit: cover;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: .8rem; line-height: 1;
+    flex: 0 0 auto; vertical-align: middle; background: #9aa3ad;
+}
+.projecao-calc__avatar--ph { text-transform: uppercase; }
+.projecao-calc__avatar--sm { width: 22px; height: 22px; font-size: .7rem; margin-right: .3rem; }
+.projecao-calc__rk-head strong { display: inline-flex; align-items: center; gap: .3rem; }
 
 .projecao-calc__grid-wrap { overflow-x: auto; }
 .projecao-calc__grid { width: 100%; border-collapse: collapse; }

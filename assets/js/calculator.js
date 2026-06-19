@@ -164,24 +164,59 @@
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
     }
 
+    function avatarHtml(c, extraClass) {
+        extraClass = extraClass || '';
+        if (c && c.photo_url) {
+            return '<img class="projecao-calc__avatar ' + extraClass + '" src="' + esc(c.photo_url) + '" alt="" loading="lazy">';
+        }
+        var initial = esc(((c && (c.nickname || c.name)) || '?').charAt(0).toUpperCase());
+        var bg = (c && c.color) ? esc(c.color) : '#9aa3ad';
+        return '<span class="projecao-calc__avatar projecao-calc__avatar--ph ' + extraClass + '" style="background:' + bg + '">' + initial + '</span>';
+    }
+
     function renderCandidates() {
         el.candidates.innerHTML = '';
         state.candidates.forEach(function (c) {
+            var partyId = (c.party && c.party.id) ? String(c.party.id) : '';
             var label = document.createElement('label');
             label.className = 'projecao-calc__cand';
+
             var cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.value = c.id;
-            cb.checked = true;
-            var swatch = '';
-            if (c.color) { swatch = '<span class="projecao-calc__swatch" style="background:' + esc(c.color) + '"></span>'; }
-            var party = c.party && c.party.acronym ? ' (' + esc(c.party.acronym) + ')' : '';
-            label.appendChild(cb);
+            cb.checked = false;
+            cb.setAttribute('data-party', partyId);
+
+            var party = c.party && c.party.acronym ? ' <small>(' + esc(c.party.acronym) + ')</small>' : '';
             var span = document.createElement('span');
-            span.innerHTML = swatch + esc(c.nickname || c.name) + party;
+            span.className = 'projecao-calc__cand-info';
+            span.innerHTML = avatarHtml(c) + '<span class="projecao-calc__cand-name">' + esc(c.nickname || c.name) + party + '</span>';
+
+            label.appendChild(cb);
             label.appendChild(span);
             el.candidates.appendChild(label);
         });
+    }
+
+    // Impede selecionar dois candidatos do mesmo partido: ao marcar um, desabilita os demais do partido.
+    function onCandidateToggle(e) {
+        var cb = e.target;
+        if (!cb || cb.type !== 'checkbox') { return; }
+        var party = cb.getAttribute('data-party');
+        if (!party) { return; }
+        var others = el.candidates.querySelectorAll('input[type=checkbox][data-party="' + party + '"]');
+        for (var i = 0; i < others.length; i++) {
+            if (others[i] === cb) { continue; }
+            var row = others[i].parentNode;
+            if (cb.checked) {
+                others[i].checked = false;
+                others[i].disabled = true;
+                if (row) { row.classList.add('is-disabled'); }
+            } else {
+                others[i].disabled = false;
+                if (row) { row.classList.remove('is-disabled'); }
+            }
+        }
     }
 
     // ---- Etapa 3: grade ----
@@ -211,7 +246,7 @@
     function renderGrid() {
         var cands = selectedCandidates();
         var thead = '<thead><tr><th>Unidade</th>';
-        cands.forEach(function (c) { thead += '<th>' + esc(c.nickname || c.name) + '</th>'; });
+        cands.forEach(function (c) { thead += '<th>' + avatarHtml(c, 'projecao-calc__avatar--sm') + '<br>' + esc(c.nickname || c.name) + '</th>'; });
         thead += '</tr></thead>';
 
         var tbody = '<tbody>';
@@ -270,11 +305,15 @@
         var max = 0;
         ranking.forEach(function (r) { if (r.percentage > max) { max = r.percentage; } });
 
+        var byId = {};
+        state.candidates.forEach(function (c) { byId[c.id] = c; });
+
         var html = '<ul class="projecao-calc__ranking">';
         ranking.forEach(function (r) {
             var w = max > 0 ? Math.round((r.percentage / max) * 100) : 0;
+            var av = avatarHtml(byId[r.candidate_id], 'projecao-calc__avatar--sm');
             html += '<li>'
-                + '<div class="projecao-calc__rk-head"><strong>' + esc(r.name) + '</strong>'
+                + '<div class="projecao-calc__rk-head"><strong>' + av + esc(r.name) + '</strong>'
                 + '<span>' + (Math.round(r.percentage * 10) / 10) + '% · ' + formatInt(r.votes) + ' votos</span></div>'
                 + '<div class="projecao-calc__bar"><span style="width:' + w + '%"></span></div>'
                 + '</li>';
@@ -294,6 +333,7 @@
 
     // ---- Eventos ----
     el.office.addEventListener('change', onOfficeChange);
+    el.candidates.addEventListener('change', onCandidateToggle);
 
     root.addEventListener('click', function (e) {
         var t = e.target;
