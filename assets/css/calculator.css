@@ -11,6 +11,9 @@
 
 .projecao-calc * { box-sizing: border-box; }
 
+/* O atributo [hidden] precisa vencer regras de display (ex.: label { display:flex }). */
+.projecao-calc [hidden] { display: none !important; }
+
 .projecao-calc__title { margin: 0 0 1rem; }
 .projecao-calc__step-title { margin: 0 0 .75rem; font-size: 1.1rem; }
 .projecao-calc__hint, .projecao-calc__credit { color: var(--pc-muted); font-size: .85rem; }

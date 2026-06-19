@@ -4,7 +4,7 @@ Tags: eleições, projeções, calculadora, simulação
 Requires at least: 5.6
 Tested up to: 6.6
 Requires PHP: 7.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: Proprietary
 
 Calculadora de simulações e projeções eleitorais integrada ao seu tema. Basta informar o client_id e o client_secret da sua aplicação.
@@ -35,6 +35,10 @@ No painel da plataforma, em API → Aplicações. Cadastre os domínios do seu s
 Não. O SDK já vem embutido no plugin.
 
 == Changelog ==
+
+= 1.0.1 =
+* Correção: o seletor de Estado agora sempre some para cargos federais (ex.: Presidente).
+* Correção: front compatível com permalink plano (monta a query corretamente quando a REST usa ?rest_route=).
 
 = 1.0.0 =
 * Versão inicial: configurações, shortcode, proxy REST e calculadora (cargo → candidatos → grade → resultado).
