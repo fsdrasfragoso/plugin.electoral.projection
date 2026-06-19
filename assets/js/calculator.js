@@ -384,19 +384,67 @@
         }
     }
 
-    // UFs a iluminar no mapa conforme o escopo/unidade atual.
+    // Mapas municipais por estado (governador). UF -> arquivo SVG em assets/maps/.
+    var STATE_MAPS = { 'CE': 'maps/ce.svg' };
+    var svgCache = {};
+
+    function normName(s) {
+        return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+
+    // URL do mapa municipal do estado, quando o escopo é por unidade interna do estado.
+    function stateMapUrl() {
+        if (state.scope !== 'regiao_estado' && state.scope !== 'municipio') { return null; }
+        var uf = state.stateUf ? String(state.stateUf).toUpperCase() : null;
+        if (!uf || !STATE_MAPS[uf]) { return null; }
+        return PROJECAO_WP.assetsUrl + STATE_MAPS[uf];
+    }
+
+    function loadStateSvg(url, cb) {
+        if (svgCache[url]) { cb(svgCache[url]); return; }
+        fetch(url).then(function (r) { return r.text(); }).then(function (txt) {
+            var doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
+            var svg = doc.querySelector('svg');
+            if (svg) { svgCache[url] = svg; cb(svg); }
+            else { el.map.style.display = 'none'; }
+        }).catch(function () { el.map.style.display = 'none'; });
+    }
+
+    // Mapa municipal do estado: ilumina os municípios da macrorregião (regiao_estado)
+    // ou apenas o município atual (municipio).
+    function drawStateMap(url, u) {
+        loadStateSvg(url, function (svg) {
+            if (el.map.getAttribute('data-map') !== url) {
+                el.map.innerHTML = '';
+                el.map.appendChild(svg.cloneNode(true));
+                el.map.setAttribute('data-map', url);
+            }
+            var targets = state.scope === 'municipio' ? [u.label] : (u.municipalities || []);
+            var wanted = {};
+            targets.forEach(function (t) { wanted[normName(t)] = true; });
+
+            var paths = el.map.querySelectorAll('.pc-mun');
+            for (var i = 0; i < paths.length; i++) {
+                var on = !!wanted[normName(paths[i].getAttribute('data-name'))];
+                paths[i].classList.toggle('is-on', on);
+            }
+            el.map.style.display = '';
+        });
+    }
+
+    // UFs a iluminar no mapa nacional conforme o escopo/unidade.
     function unitUfs(u) {
         if (state.scope === 'estado') { return u.sub ? [String(u.sub).toUpperCase()] : []; }
         if (state.scope === 'regiao') { return REGION_UFS[u.label] || []; }
-        // macrorregião / município → ilumina o estado da eleição
         return state.stateUf ? [String(state.stateUf).toUpperCase()] : [];
     }
 
-    function drawMap(u) {
-        if (!el.map) { return; }
+    function drawNationalMap(u) {
         if (typeof BrMap === 'undefined') { el.map.style.display = 'none'; return; }
         try {
             el.map.innerHTML = '';
+            el.map.removeAttribute('data-map');
             BrMap.Draw({
                 wrapper: '#pc-br-map',
                 selectStates: unitUfs(u),
@@ -407,6 +455,13 @@
         } catch (e) {
             el.map.style.display = 'none';
         }
+    }
+
+    function drawMap(u) {
+        if (!el.map) { return; }
+        var stateUrl = stateMapUrl();
+        if (stateUrl) { drawStateMap(stateUrl, u); }
+        else { drawNationalMap(u); }
     }
 
     function renderUnit() {

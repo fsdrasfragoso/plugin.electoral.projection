@@ -86,6 +86,7 @@ class Shortcode
             'restBase' => esc_url_raw(rest_url(Rest::NS)),
             'nonce' => wp_create_nonce('wp_rest'),
             'isLoggedIn' => is_user_logged_in(),
+            'assetsUrl' => esc_url_raw(PROJECAO_WP_URL . 'assets/'),
         ));
 
         ob_start();

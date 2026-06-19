@@ -100,6 +100,8 @@
 .projecao-calc__unit-form { flex: 2 1 360px; }
 .projecao-calc__map { max-width: 240px; margin: 0 auto .75rem; }
 .projecao-calc__map svg { width: 100%; height: auto; }
+.projecao-calc__map .pc-mun { fill: #dfe3e8; stroke: #fff; stroke-width: .5; transition: fill .15s ease; }
+.projecao-calc__map .pc-mun.is-on { fill: var(--pc-accent); }
 .projecao-calc__flag { width: 84px; height: 84px; object-fit: cover; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.15); margin-bottom: .5rem; }
 .projecao-calc__unit-sub { display: inline-block; background: #1f2d3d; color: #fff; border-radius: 4px; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
 .projecao-calc__unit-name { margin: .5rem 0 .25rem; }
