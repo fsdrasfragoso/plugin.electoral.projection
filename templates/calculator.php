@@ -45,17 +45,40 @@ if (!defined('ABSPATH')) {
         </div>
     </section>
 
-    <!-- Etapa 3: grade de percentuais -->
+    <!-- Etapa 3: projeção unidade por unidade -->
     <section class="projecao-calc__step" data-pc-step="3" hidden>
         <h3 class="projecao-calc__step-title"><?php esc_html_e('3. Projeção por unidade', 'projecao-eleitoral'); ?></h3>
-        <p class="projecao-calc__hint"><?php esc_html_e('Informe o percentual (%) de cada candidato em cada unidade.', 'projecao-eleitoral'); ?></p>
-        <div class="projecao-calc__grid-wrap">
-            <table class="projecao-calc__grid" data-pc-grid></table>
+
+        <div class="projecao-calc__progress"><span data-pc-progress></span></div>
+
+        <div class="projecao-calc__proj">
+            <div class="projecao-calc__unit-panel">
+                <img class="projecao-calc__flag" data-pc-flag src="" alt="" hidden>
+                <span class="projecao-calc__unit-sub" data-pc-unit-sub></span>
+                <h4 class="projecao-calc__unit-name" data-pc-unit-name></h4>
+                <div class="projecao-calc__muted" data-pc-unit-counter></div>
+                <div class="projecao-calc__muted projecao-calc__small" data-pc-unit-valid></div>
+                <p class="projecao-calc__muted projecao-calc__small projecao-calc__unit-tip">
+                    <?php esc_html_e('A análise avança unidade por unidade até o resultado final.', 'projecao-eleitoral'); ?>
+                </p>
+            </div>
+            <div class="projecao-calc__unit-form">
+                <div class="projecao-calc__sumalert" data-pc-sumalert hidden></div>
+                <p class="projecao-calc__hint"><?php esc_html_e('Informe o percentual (%) de cada candidato. A soma desta unidade deve ser 100%.', 'projecao-eleitoral'); ?></p>
+                <div data-pc-rows></div>
+                <div class="projecao-calc__total-row">
+                    <span><?php esc_html_e('Total', 'projecao-eleitoral'); ?></span>
+                    <strong data-pc-sum>100%</strong>
+                </div>
+            </div>
         </div>
+
         <div class="projecao-calc__actions">
             <button type="button" class="projecao-calc__btn projecao-calc__btn--ghost" data-pc-back="2"><?php esc_html_e('Voltar', 'projecao-eleitoral'); ?></button>
-            <button type="button" class="projecao-calc__btn projecao-calc__btn--ghost" data-pc-preview><?php esc_html_e('Pré-visualizar', 'projecao-eleitoral'); ?></button>
-            <button type="button" class="projecao-calc__btn" data-pc-save><?php esc_html_e('Salvar projeção', 'projecao-eleitoral'); ?></button>
+            <button type="button" class="projecao-calc__btn projecao-calc__btn--ghost" data-pc-unit-prev><?php esc_html_e('Anterior', 'projecao-eleitoral'); ?></button>
+            <button type="button" class="projecao-calc__btn" data-pc-unit-next><?php esc_html_e('Próximo', 'projecao-eleitoral'); ?></button>
+            <button type="button" class="projecao-calc__btn projecao-calc__btn--ghost" data-pc-preview hidden><?php esc_html_e('Pré-visualizar', 'projecao-eleitoral'); ?></button>
+            <button type="button" class="projecao-calc__btn" data-pc-save hidden><?php esc_html_e('Salvar projeção', 'projecao-eleitoral'); ?></button>
         </div>
     </section>
 

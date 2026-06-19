@@ -23,7 +23,9 @@
         scope: null,
         candidates: [],   // todos da eleição
         selected: [],      // ids selecionados
-        units: []
+        units: [],
+        matrix: {},        // matrix[unitId][candId] = %
+        current: 0         // índice da unidade atual
     };
 
     var el = {
@@ -34,9 +36,22 @@
         state: q('[data-pc-state]'),
         scope: q('[data-pc-scope]'),
         candidates: q('[data-pc-candidates]'),
-        grid: q('[data-pc-grid]'),
         result: q('[data-pc-result]'),
-        ranking: q('[data-pc-ranking]')
+        ranking: q('[data-pc-ranking]'),
+        // Etapa 3 (unidade por unidade)
+        rows: q('[data-pc-rows]'),
+        sum: q('[data-pc-sum]'),
+        sumalert: q('[data-pc-sumalert]'),
+        flag: q('[data-pc-flag]'),
+        unitName: q('[data-pc-unit-name]'),
+        unitSub: q('[data-pc-unit-sub]'),
+        unitCounter: q('[data-pc-unit-counter]'),
+        unitValid: q('[data-pc-unit-valid]'),
+        progress: q('[data-pc-progress]'),
+        unitPrev: q('[data-pc-unit-prev]'),
+        unitNext: q('[data-pc-unit-next]'),
+        preview: q('[data-pc-preview]'),
+        save: q('[data-pc-save]')
     };
 
     function q(sel) { return root.querySelector(sel); }
@@ -219,7 +234,7 @@
         }
     }
 
-    // ---- Etapa 3: grade ----
+    // ---- Etapa 3: projeção unidade por unidade (mesma estrutura do front Laravel) ----
     function goToStep3() {
         var checked = el.candidates.querySelectorAll('input[type=checkbox]:checked');
         state.selected = [];
@@ -234,7 +249,12 @@
         }
         api('/units', { query: query }).then(function (units) {
             state.units = units;
-            renderGrid();
+            if (!units.length) { throw new Error('Nenhuma unidade encontrada para este escopo.'); }
+            buildMatrix();
+            renderRows();
+            state.current = 0;
+            show(el.result, false);
+            renderUnit();
             step(3);
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
     }
@@ -243,47 +263,130 @@
         return state.candidates.filter(function (c) { return state.selected.indexOf(c.id) !== -1; });
     }
 
-    function renderGrid() {
+    // Inicia cada unidade com divisão igual fechando 100% (resto no 1º candidato).
+    function buildMatrix() {
         var cands = selectedCandidates();
-        var thead = '<thead><tr><th>Unidade</th>';
-        cands.forEach(function (c) { thead += '<th>' + avatarHtml(c, 'projecao-calc__avatar--sm') + '<br>' + esc(c.nickname || c.name) + '</th>'; });
-        thead += '</tr></thead>';
-
-        var tbody = '<tbody>';
+        var base = Math.round((100 / cands.length) * 10) / 10;
+        state.matrix = {};
         state.units.forEach(function (u) {
-            tbody += '<tr><td class="projecao-calc__unit">' + esc(u.label) + (u.sub ? ' <small>' + esc(u.sub) + '</small>' : '') + '</td>';
-            cands.forEach(function (c) {
-                tbody += '<td><input type="number" min="0" max="100" step="0.1" '
-                    + 'data-unit="' + u.id + '" data-cand="' + c.id + '" value=""></td>';
-            });
-            tbody += '</tr>';
+            state.matrix[u.id] = {};
+            var sum = 0;
+            cands.forEach(function (c) { state.matrix[u.id][c.id] = base; sum += base; });
+            state.matrix[u.id][cands[0].id] = Math.round((state.matrix[u.id][cands[0].id] + (100 - sum)) * 10) / 10;
         });
-        tbody += '</tbody>';
-        el.grid.innerHTML = thead + tbody;
+    }
+
+    // Linhas dos candidatos: criadas uma vez; os valores trocam conforme a unidade.
+    function renderRows() {
+        var cands = selectedCandidates();
+        el.rows.innerHTML = '';
+        cands.forEach(function (c, i) {
+            var row = document.createElement('div');
+            row.className = 'projecao-calc__cand-row';
+            var party = c.party && c.party.acronym ? ' <small>(' + esc(c.party.acronym) + ')</small>' : '';
+            row.innerHTML =
+                '<div class="projecao-calc__cand-line">' +
+                avatarHtml(c, 'projecao-calc__avatar--sm') +
+                '<span class="projecao-calc__cand-name">' + esc(c.nickname || c.name) + party + '</span>' +
+                '<input type="number" min="0" max="100" step="0.1" inputmode="decimal" data-index="' + i + '">' +
+                '<span class="projecao-calc__pct">%</span>' +
+                '</div>' +
+                '<div class="projecao-calc__bar"><span data-bar="' + i + '" style="background:' + (c.color ? esc(c.color) : '#149ddd') + '"></span></div>';
+            el.rows.appendChild(row);
+        });
+    }
+
+    function currentUnit() { return state.units[state.current]; }
+    function unitValues() { return state.matrix[currentUnit().id]; }
+    function unitTotal() {
+        var s = 0;
+        selectedCandidates().forEach(function (c) { s += parseFloat(unitValues()[c.id]) || 0; });
+        return s;
+    }
+    function validUnit() { return Math.abs(unitTotal() - 100) < 0.5; }
+
+    // Entrada manual: define o valor, SEM redistribuir os demais.
+    function setValue(index, value) {
+        var cands = selectedCandidates();
+        value = isNaN(value) ? 0 : Math.min(100, Math.max(0, value));
+        unitValues()[cands[index].id] = value;
+        syncControls();
+    }
+
+    function syncControls() {
+        var cands = selectedCandidates();
+        var vals = unitValues();
+        var inputs = el.rows.querySelectorAll('input[data-index]');
+        var bars = el.rows.querySelectorAll('[data-bar]');
+        var sum = 0;
+        cands.forEach(function (c, i) {
+            var v = parseFloat(vals[c.id]) || 0;
+            sum += v;
+            if (document.activeElement !== inputs[i]) { inputs[i].value = String(Math.round(v * 10) / 10); }
+            if (bars[i]) { bars[i].style.width = Math.min(100, v) + '%'; }
+        });
+        var ok = Math.abs(sum - 100) < 0.5;
+        el.sum.textContent = (Math.round(sum * 10) / 10) + '%';
+        el.sum.classList.toggle('is-bad', !ok);
+        if (ok) {
+            show(el.sumalert, false);
+        } else {
+            var diff = Math.round((100 - sum) * 10) / 10;
+            el.sumalert.textContent = diff > 0
+                ? ('Faltam ' + diff + '% para fechar 100%.')
+                : ('Excede ' + Math.abs(diff) + '% dos 100%.');
+            show(el.sumalert, true);
+        }
+    }
+
+    function renderUnit() {
+        var u = currentUnit();
+        var last = state.current === state.units.length - 1;
+        el.unitName.textContent = u.label;
+        el.unitSub.textContent = u.sub || '';
+        el.unitSub.style.display = u.sub ? '' : 'none';
+        el.unitCounter.textContent = 'Unidade ' + (state.current + 1) + ' de ' + state.units.length;
+        el.unitValid.textContent = 'Votos válidos: ' + formatInt(u.valid_votes);
+        el.progress.style.width = ((state.current + 1) / state.units.length * 100) + '%';
+        if (u.flag_url) { el.flag.src = u.flag_url; show(el.flag, true); } else { show(el.flag, false); }
+
+        el.unitPrev.disabled = state.current === 0;
+        show(el.unitNext, !last);
+        show(el.preview, last);
+        show(el.save, last);
+        syncControls();
+    }
+
+    // Todas as unidades precisam fechar 100% antes de calcular/salvar.
+    function validateAllUnits() {
+        var cands = selectedCandidates();
+        for (var k = 0; k < state.units.length; k++) {
+            var vals = state.matrix[state.units[k].id];
+            var s = 0;
+            cands.forEach(function (c) { s += parseFloat(vals[c.id]) || 0; });
+            if (Math.abs(s - 100) >= 0.5) {
+                state.current = k;
+                renderUnit();
+                setError('A soma da unidade "' + state.units[k].label + '" deve ser 100% (atual: ' + (Math.round(s * 10) / 10) + '%).');
+                return false;
+            }
+        }
+        setError('');
+        return true;
     }
 
     function buildPayload() {
-        var cands = selectedCandidates();
-        var byCand = {};
-        cands.forEach(function (c) { byCand[c.id] = { candidate_id: c.id, units: {} }; });
-
-        var inputs = el.grid.querySelectorAll('input[data-unit]');
-        for (var i = 0; i < inputs.length; i++) {
-            var inp = inputs[i];
-            var cand = parseInt(inp.getAttribute('data-cand'), 10);
-            var unit = parseInt(inp.getAttribute('data-unit'), 10);
-            var val = parseFloat(inp.value);
-            if (isNaN(val)) { val = 0; }
-            if (byCand[cand]) { byCand[cand].units[unit] = val; }
-        }
-
         var candidates = [];
-        cands.forEach(function (c) { candidates.push(byCand[c.id]); });
-
+        selectedCandidates().forEach(function (c) {
+            var units = {};
+            state.units.forEach(function (u) { units[u.id] = parseFloat(state.matrix[u.id][c.id]) || 0; });
+            candidates.push({ candidate_id: c.id, units: units });
+        });
         return { election_id: state.electionId, scope: state.scope, candidates: candidates };
     }
 
     function submit(path) {
+        if (!validateAllUnits()) { return; }
         loading(true); setError('');
         api(path, { method: 'POST', body: buildPayload() })
             .then(function (data) { renderResult(data); })
@@ -334,6 +437,12 @@
     // ---- Eventos ----
     el.office.addEventListener('change', onOfficeChange);
     el.candidates.addEventListener('change', onCandidateToggle);
+    el.rows.addEventListener('input', function (e) {
+        var t = e.target;
+        if (t && t.hasAttribute('data-index')) {
+            setValue(parseInt(t.getAttribute('data-index'), 10), parseFloat(t.value));
+        }
+    });
 
     root.addEventListener('click', function (e) {
         var t = e.target;
@@ -343,6 +452,14 @@
             else if (n === '3') { goToStep3(); }
         } else if (t.hasAttribute('data-pc-back')) {
             step(t.getAttribute('data-pc-back'));
+        } else if (t.hasAttribute('data-pc-unit-prev')) {
+            if (state.current > 0) { state.current--; setError(''); renderUnit(); }
+        } else if (t.hasAttribute('data-pc-unit-next')) {
+            if (!validUnit()) {
+                setError('A soma desta unidade deve ser 100% (atual: ' + (Math.round(unitTotal() * 10) / 10) + '%).');
+                return;
+            }
+            if (state.current < state.units.length - 1) { state.current++; setError(''); renderUnit(); }
         } else if (t.hasAttribute('data-pc-preview')) {
             submit('/preview');
         } else if (t.hasAttribute('data-pc-save')) {

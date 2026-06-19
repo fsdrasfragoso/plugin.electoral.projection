@@ -80,6 +80,32 @@
 .projecao-calc__grid input[type="number"] { min-width: 80px; width: 90px; }
 .projecao-calc__unit small { color: var(--pc-muted); }
 
+/* Etapa 3 — projeção unidade por unidade */
+.projecao-calc__progress { height: 6px; background: #eef1f5; border-radius: 6px; overflow: hidden; margin-bottom: 1rem; }
+.projecao-calc__progress > span { display: block; height: 100%; width: 0; background: var(--pc-accent); transition: width .2s ease; }
+.projecao-calc__proj { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-start; }
+.projecao-calc__unit-panel {
+    flex: 1 1 220px; text-align: center; border: 1px solid var(--pc-border);
+    border-radius: 10px; padding: 1.25rem 1rem; background: rgba(255,255,255,.5);
+}
+.projecao-calc__unit-form { flex: 2 1 360px; }
+.projecao-calc__flag { width: 84px; height: 84px; object-fit: cover; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.15); margin-bottom: .5rem; }
+.projecao-calc__unit-sub { display: inline-block; background: #1f2d3d; color: #fff; border-radius: 4px; padding: .1rem .5rem; font-size: .8rem; font-weight: 600; }
+.projecao-calc__unit-name { margin: .5rem 0 .25rem; }
+.projecao-calc__unit-tip { margin-top: 1rem; }
+
+.projecao-calc__cand-row { margin-bottom: .9rem; }
+.projecao-calc__cand-line { display: flex; align-items: center; gap: .5rem; }
+.projecao-calc__cand-line .projecao-calc__cand-name { flex: 1 1 auto; font-weight: 600; font-size: .95rem; }
+.projecao-calc__cand-line input[type="number"] { width: 90px; min-width: 0; text-align: right; }
+.projecao-calc__pct { color: var(--pc-muted); }
+.projecao-calc__cand-row .projecao-calc__bar { margin-top: 5px; }
+.projecao-calc__cand-row .projecao-calc__bar > span { transition: width .15s ease; }
+
+.projecao-calc__total-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--pc-border); margin-top: .75rem; padding-top: .6rem; font-weight: 600; }
+.projecao-calc__total-row [data-pc-sum].is-bad { color: #b3261e; }
+.projecao-calc__sumalert { background: #fff8e1; color: #7a5d00; border: 1px solid #ffe08a; padding: .5rem .7rem; border-radius: 6px; margin-bottom: .75rem; font-size: .9rem; }
+
 .projecao-calc__result { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid var(--pc-border); }
 .projecao-calc__ranking { list-style: none; margin: 0; padding: 0; }
 .projecao-calc__ranking li { margin-bottom: .75rem; }
