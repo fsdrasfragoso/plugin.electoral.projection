@@ -4,7 +4,7 @@
  * Plugin Name:       Projeção Eleitoral
  * Plugin URI:        https://fragososoftware.com
  * Description:       Calculadora de simulações e projeções eleitorais integrada ao seu tema. Basta informar o client_id e o client_secret da sua aplicação. Consome a API de Projeções da Fragoso Software.
- * Version:           1.0.9
+ * Version:           1.1.0
  * Requires at least: 5.6
  * Requires PHP:      7.0
  * Author:            Fragoso Software
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit; // acesso direto bloqueado
 }
 
-define('PROJECAO_WP_VERSION', '1.0.9');
+define('PROJECAO_WP_VERSION', '1.1.0');
 define('PROJECAO_WP_FILE', __FILE__);
 define('PROJECAO_WP_DIR', plugin_dir_path(__FILE__));
 define('PROJECAO_WP_URL', plugin_dir_url(__FILE__));

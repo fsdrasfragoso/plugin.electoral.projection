@@ -468,7 +468,7 @@
         return PROJECAO_WP.assetsUrl + 'maps/' + uf.toLowerCase() + '.svg';
     }
 
-    function loadStateSvg(url, cb) {
+    function loadSvg(url, cb) {
         if (svgCache[url]) { cb(svgCache[url]); return; }
         fetch(url).then(function (r) { return r.text(); }).then(function (txt) {
             var doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
@@ -478,23 +478,21 @@
         }).catch(function () { el.map.style.display = 'none'; });
     }
 
-    // Mapa municipal do estado: ilumina os municípios da macrorregião (regiao_estado)
-    // ou apenas o município atual (municipio).
-    function drawStateMap(url, u) {
-        loadStateSvg(url, function (svg) {
+    // Injeta o SVG (uma vez por url) e pinta (.is-on) os paths cuja chave está
+    // em wantedList. getKey extrai a chave de cada path (UF ou nome normalizado).
+    function paintMap(url, getKey, wantedList) {
+        loadSvg(url, function (svg) {
             if (el.map.getAttribute('data-map') !== url) {
                 el.map.innerHTML = '';
                 el.map.appendChild(svg.cloneNode(true));
                 el.map.setAttribute('data-map', url);
             }
-            var targets = state.scope === 'municipio' ? [u.label] : (u.municipalities || []);
             var wanted = {};
-            targets.forEach(function (t) { wanted[normName(t)] = true; });
+            wantedList.forEach(function (w) { wanted[w] = true; });
 
             var paths = el.map.querySelectorAll('.pc-mun');
             for (var i = 0; i < paths.length; i++) {
-                var on = !!wanted[normName(paths[i].getAttribute('data-name'))];
-                paths[i].classList.toggle('is-on', on);
+                paths[i].classList.toggle('is-on', !!wanted[getKey(paths[i])]);
             }
             el.map.style.display = '';
         });
@@ -507,28 +505,22 @@
         return state.stateUf ? [String(state.stateUf).toUpperCase()] : [];
     }
 
-    function drawNationalMap(u) {
-        if (typeof BrMap === 'undefined') { el.map.style.display = 'none'; return; }
-        try {
-            el.map.innerHTML = '';
-            el.map.removeAttribute('data-map');
-            BrMap.Draw({
-                wrapper: '#pc-br-map',
-                selectStates: unitUfs(u),
-                cssFill: { selected: '#149ddd' },
-                responsive: true
-            });
-            el.map.style.display = '';
-        } catch (e) {
-            el.map.style.display = 'none';
-        }
-    }
-
     function drawMap(u) {
         if (!el.map) { return; }
         var stateUrl = stateMapUrl();
-        if (stateUrl) { drawStateMap(stateUrl, u); }
-        else { drawNationalMap(u); }
+        if (stateUrl) {
+            // Mapa municipal do estado: ilumina por nome (município).
+            var muns = state.scope === 'municipio' ? [u.label] : (u.municipalities || []);
+            var wanted = muns.map(function (m) { return normName(m); });
+            paintMap(stateUrl, function (p) { return normName(p.getAttribute('data-name')); }, wanted);
+        } else {
+            // Mapa nacional: ilumina por UF (região do país ou estado).
+            paintMap(
+                PROJECAO_WP.assetsUrl + 'maps/br.svg',
+                function (p) { return (p.getAttribute('data-uf') || '').toUpperCase(); },
+                unitUfs(u)
+            );
+        }
     }
 
     // Tags abaixo do mapa: estados da região (escopo região) ou municípios da
