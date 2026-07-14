@@ -74,6 +74,7 @@
         candidates: q('[data-pc-candidates]'),
         result: q('[data-pc-result]'),
         ranking: q('[data-pc-ranking]'),
+        average: q('[data-pc-average]'),
         // Etapa 3 (unidade por unidade)
         rows: q('[data-pc-rows]'),
         sum: q('[data-pc-sum]'),
@@ -665,6 +666,45 @@
         el.ranking.innerHTML = html;
         show(el.result, true);
         el.result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        renderAverage();
+    }
+
+    // Média (consenso) das projeções de todos os leitores, exibida no rodapé do resultado.
+    function renderAverage() {
+        if (!el.average || !state.electionId) { return; }
+
+        api('/averages', { query: { election_id: state.electionId } }).then(function (avg) {
+            var cands = (avg && avg.candidates) || [];
+            if (!cands.length) { show(el.average, false); return; }
+
+            var byId = {};
+            (state.candidates || []).forEach(function (c) { byId[c.id] = c; });
+
+            var max = 0;
+            cands.forEach(function (r) { if (r.avg_percentage > max) { max = r.avg_percentage; } });
+
+            var count = avg.projections_count || 0;
+            var html = '<h4 class="projecao-calc__avg-title">Média das projeções dos leitores</h4>';
+            html += '<p class="projecao-calc__avg-sub">'
+                + (count ? ('Consenso de ' + formatInt(count) + ' projeç' + (count === 1 ? 'ão' : 'ões'))
+                         : 'Ainda sem projeções suficientes')
+                + '</p>';
+            html += '<ul class="projecao-calc__ranking projecao-calc__ranking--avg">';
+            cands.forEach(function (r) {
+                var w = max > 0 ? Math.round((r.avg_percentage / max) * 100) : 0;
+                var c = byId[r.candidate_id];
+                var av = avatarHtml(c, 'projecao-calc__avatar--sm');
+                var color = (c && c.color) ? c.color : (brandColor() || '#149ddd');
+                html += '<li><div class="projecao-calc__rk-head"><strong>' + av + esc(r.name) + '</strong>'
+                    + '<span>' + (Math.round(r.avg_percentage * 10) / 10) + '% · ' + formatInt(r.avg_votes) + ' votos</span></div>'
+                    + '<div class="projecao-calc__bar"><span style="width:' + w + '%;background:' + color + '"></span></div></li>';
+            });
+            html += '</ul>';
+
+            el.average.innerHTML = html;
+            show(el.average, true);
+        }).catch(function () { show(el.average, false); });
     }
 
     function formatInt(n) {
@@ -680,6 +720,7 @@
 
         api('/projections/' + id).then(function (proj) {
             var electionId = proj.election ? proj.election.id : null;
+            state.electionId = electionId;
             state.office = { name: (proj.election && proj.election.office) ? proj.election.office : 'Projeção' };
             state.electionYear = proj.election ? proj.election.year : null;
             state.stateUf = (proj.election && proj.election.state) ? proj.election.state.uf : null;

@@ -156,6 +156,9 @@
 .projecao-calc__sumalert { background: #fff8e1; color: #7a5d00; border: 1px solid #ffe08a; padding: .5rem .7rem; border-radius: 6px; margin-bottom: .75rem; font-size: .9rem; }
 
 .projecao-calc__result { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid var(--pc-border); }
+.projecao-calc__average { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px dashed var(--pc-border); }
+.projecao-calc__avg-title { margin: 0 0 .15rem; font-size: 1.05rem; }
+.projecao-calc__avg-sub { margin: 0 0 .85rem; color: var(--pc-muted); font-size: .85rem; }
 .projecao-calc__ranking { list-style: none; margin: 0; padding: 0; }
 .projecao-calc__ranking li { margin-bottom: .75rem; }
 .projecao-calc__rk-head { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: .25rem; }

@@ -92,6 +92,16 @@ class Rest
             },
         ));
 
+        // Média (consenso) das projeções salvas de uma eleição.
+        register_rest_route(self::NS, '/averages', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->cachedRun($r, 'averages', function ($sdk) use ($r) {
+                    return $sdk->averages((int) $r->get_param('election_id'));
+                });
+            },
+        ));
+
         register_rest_route(self::NS, '/units', array(
             'methods' => 'GET', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {

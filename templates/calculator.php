@@ -100,6 +100,7 @@ if (!defined('ABSPATH')) {
                 <?php esc_html_e('Compartilhar projeção', 'projecao-eleitoral'); ?>
             </button>
         </div>
+        <div class="projecao-calc__average" data-pc-average hidden></div>
     </section>
 
     <div class="projecao-calc__loading" data-pc-loading hidden><?php esc_html_e('Carregando…', 'projecao-eleitoral'); ?></div>
