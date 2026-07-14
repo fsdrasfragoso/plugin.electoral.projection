@@ -161,3 +161,103 @@
     padding: .8rem 1rem; border-radius: 6px;
 }
 .projecao-calc__loading { color: var(--pc-muted); margin-top: .75rem; }
+
+/* Senado: nota e selo de "Eleito" no resultado (top-N). */
+.projecao-calc__elected-note { color: var(--pc-accent); font-weight: 600; margin: 0 0 .6rem; }
+.projecao-calc__badge {
+    display: inline-block; font-size: .7rem; font-weight: 700; background: var(--pc-accent);
+    color: #fff; border-radius: .4rem; padding: .05rem .4rem; margin-left: .35rem; vertical-align: middle;
+}
+.projecao-calc__ranking li.is-elected .projecao-calc__rk-head strong { color: var(--pc-accent); }
+
+/* Compartilhar projeção + rodapé legal */
+.projecao-calc__share-actions { margin-top: 1.25rem; display: flex; gap: .6rem; flex-wrap: wrap; }
+.projecao-calc__legal {
+    color: var(--pc-muted); font-size: .72rem; line-height: 1.45;
+    margin: .35rem 0 0; text-align: center;
+}
+
+/* Aviso amigável de projeção inexistente/indisponível */
+.projecao-calc__shared-notice { margin: 1rem 0; }
+.projecao-calc__notice-card {
+    text-align: center; background: rgba(255,255,255,.6); border: 1px solid var(--pc-border);
+    border-radius: 12px; padding: 2rem 1.5rem; max-width: 460px; margin: 0 auto;
+}
+.projecao-calc__notice-icon { font-size: 2.2rem; line-height: 1; margin-bottom: .5rem; }
+.projecao-calc__notice-title { margin: 0 0 .4rem; font-size: 1.2rem; }
+.projecao-calc__notice-text { margin: 0 0 1.2rem; color: var(--pc-muted); }
+.projecao-calc__notice-btn {
+    display: inline-block; background: var(--pc-accent); color: #fff; text-decoration: none;
+    font-weight: 600; padding: .6rem 1.4rem; border-radius: 8px;
+}
+.projecao-calc__notice-btn:hover { filter: brightness(.95); color: #fff; }
+
+/* Projeção pública (somente leitura) via ?projecao=ID */
+.projecao-calc__shared-head { margin-bottom: 1rem; }
+.projecao-calc__shared-kicker { color: var(--pc-accent); font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+.projecao-calc__shared-title { margin: .15rem 0 .25rem; font-size: 1.25rem; }
+.projecao-calc__shared-analyst { margin: 0; font-weight: 600; }
+.projecao-calc__shared-sub { margin: .1rem 0 0; color: var(--pc-muted); font-size: .9rem; }
+
+/* Detalhamento por unidade (accordion) na projeção pública */
+.projecao-calc__detail { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 2px solid var(--pc-border); }
+.projecao-calc__detail-title { margin: 0 0 .15rem; font-size: 1.2rem; }
+.projecao-calc__detail-sub { margin: 0 0 1rem; color: var(--pc-muted); }
+.projecao-calc__accordion { display: flex; flex-direction: column; gap: .5rem; }
+.projecao-calc__acc-item { border: 1px solid var(--pc-border); border-radius: 10px; background: rgba(255,255,255,.6); overflow: hidden; }
+.projecao-calc__acc-head {
+    width: 100%; display: flex; align-items: center; gap: .6rem; padding: .85rem 1rem;
+    background: transparent; border: 0; cursor: pointer; text-align: left; font: inherit; color: inherit;
+}
+.projecao-calc__acc-head.is-open { background: rgba(20,157,221,.08); }
+.projecao-calc__acc-name { font-weight: 700; }
+.projecao-calc__acc-votes { color: var(--pc-muted); font-size: .85rem; flex: 1 1 auto; }
+.projecao-calc__acc-chevron {
+    width: .5rem; height: .5rem; flex: 0 0 auto; border-right: 2px solid #5a6b7b; border-bottom: 2px solid #5a6b7b;
+    transform: rotate(45deg); transition: transform .15s ease;
+}
+.projecao-calc__acc-head.is-open .projecao-calc__acc-chevron { transform: rotate(-135deg); }
+.projecao-calc__acc-body { padding: .85rem 1rem 1rem; border-top: 1px solid var(--pc-border); }
+.projecao-calc__acc-actions { display: flex; justify-content: flex-end; margin-bottom: .75rem; }
+.projecao-calc__share-unit {
+    display: inline-flex; align-items: center; gap: .35rem; background: #fff; color: var(--pc-accent);
+    border: 1px solid var(--pc-accent); border-radius: 8px; padding: .4rem .9rem; font-weight: 600;
+    font-size: .85rem; cursor: pointer;
+}
+.projecao-calc__share-unit::before { content: "\2197"; font-weight: 700; }
+.projecao-calc__share-unit:hover { background: var(--pc-accent); color: #fff; }
+.projecao-calc__ranking--unit { margin: 0; }
+.projecao-calc__ranking--unit li { margin-bottom: .5rem; }
+.projecao-calc__party { color: var(--pc-muted); font-weight: 600; font-size: .78rem; margin-left: .25rem; }
+
+/* Caixa de compartilhamento (fallback quando não há share nativo de arquivo) */
+.projecao-calc__share-modal {
+    position: fixed; inset: 0; z-index: 99999; background: rgba(3,23,45,.6);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.projecao-calc__share-modal .pc-sm__box {
+    background: #fff; border-radius: 14px; max-width: 420px; width: 100%;
+    max-height: 90vh; overflow: auto; padding: 20px; position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+.projecao-calc__share-modal .pc-sm__close {
+    position: absolute; top: 8px; right: 12px; border: 0; background: transparent;
+    font-size: 26px; line-height: 1; cursor: pointer; color: #5a6b7b;
+}
+.projecao-calc__share-modal .pc-sm__title { margin: 0 0 12px; font-size: 18px; color: #03172d; }
+.projecao-calc__share-modal .pc-sm__img {
+    display: block; width: 100%; height: auto; border-radius: 10px;
+    border: 1px solid #e3e9ef; margin-bottom: 14px;
+}
+.projecao-calc__share-modal .pc-sm__btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.projecao-calc__share-modal .pc-sm__btn {
+    display: block; text-align: center; text-decoration: none; padding: 10px 12px;
+    border-radius: 8px; font-weight: 600; font-size: 14px; color: #fff; border: 0; cursor: pointer;
+}
+.projecao-calc__share-modal .pc-sm__wa { background: #25d366; }
+.projecao-calc__share-modal .pc-sm__tg { background: #229ed9; }
+.projecao-calc__share-modal .pc-sm__tw { background: #000; }
+.projecao-calc__share-modal .pc-sm__fb { background: #1877f2; }
+.projecao-calc__share-modal .pc-sm__copy { background: #5a6b7b; }
+.projecao-calc__share-modal .pc-sm__dl { background: #03172d; }
+.projecao-calc__share-modal .pc-sm__hint { margin: 12px 0 0; font-size: 12px; color: #8a949e; line-height: 1.4; }

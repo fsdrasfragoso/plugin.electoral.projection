@@ -43,6 +43,35 @@ if (!defined('ABSPATH')) {
                 <th scope="row"><label for="pc_timeout"><?php esc_html_e('Timeout (s)', 'projecao-eleitoral'); ?></label></th>
                 <td><input name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[timeout]" id="pc_timeout" type="number" min="1" value="<?php echo esc_attr($values['timeout']); ?>" class="small-text"></td>
             </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Cores da imagem de compartilhamento', 'projecao-eleitoral'); ?></th>
+                <td>
+                    <p class="description" style="margin-bottom:.6rem"><?php esc_html_e('As barras de cada candidato sempre usam a cor do candidato. Aqui você define só as cores das faixas (topo e rodapé) da imagem.', 'projecao-eleitoral'); ?></p>
+                    <p>
+                        <label for="pc_header_bg" style="display:inline-block;width:230px"><?php esc_html_e('Cor do topo (fundo)', 'projecao-eleitoral'); ?></label>
+                        <input name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[header_bg]" id="pc_header_bg" type="color" value="<?php echo esc_attr($values['header_bg']); ?>">
+                    </p>
+                    <p>
+                        <label for="pc_header_text" style="display:inline-block;width:230px"><?php esc_html_e('Cor da fonte do topo', 'projecao-eleitoral'); ?></label>
+                        <input name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[header_text]" id="pc_header_text" type="color" value="<?php echo esc_attr($values['header_text']); ?>">
+                    </p>
+                    <p>
+                        <label for="pc_footer_color" style="display:inline-block;width:230px"><?php esc_html_e('Cor da barra inferior (fundo)', 'projecao-eleitoral'); ?></label>
+                        <input name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[footer_color]" id="pc_footer_color" type="color" value="<?php echo esc_attr($values['footer_color']); ?>">
+                    </p>
+                    <p>
+                        <label for="pc_footer_text" style="display:inline-block;width:230px"><?php esc_html_e('Cor da fonte da barra inferior', 'projecao-eleitoral'); ?></label>
+                        <input name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[footer_text]" id="pc_footer_text" type="color" value="<?php echo esc_attr($values['footer_text']); ?>">
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label for="pc_share_text"><?php esc_html_e('Texto do compartilhamento', 'projecao-eleitoral'); ?></label></th>
+                <td>
+                    <textarea name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[share_text]" id="pc_share_text" rows="3" class="large-text"><?php echo esc_textarea($values['share_text']); ?></textarea>
+                    <p class="description"><?php esc_html_e('Legenda que acompanha a imagem ao compartilhar (ex.: no WhatsApp). O link da projeção é adicionado automaticamente ao final.', 'projecao-eleitoral'); ?></p>
+                </td>
+            </tr>
         </table>
         <?php submit_button(); ?>
     </form>

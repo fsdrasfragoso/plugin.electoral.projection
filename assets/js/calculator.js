@@ -59,7 +59,9 @@
         matrix: {},        // matrix[unitId][candId] = %
         current: 0,        // índice da unidade atual
         statesById: {},    // id do estado -> UF
-        stateUf: null      // UF do estado selecionado (cargos estaduais)
+        stateUf: null,     // UF do estado selecionado (cargos estaduais)
+        maxPerParty: 1,    // candidatos por partido (Senado = 2)
+        elects: 1          // quantos são eleitos (Senado = 2)
     };
 
     var el = {
@@ -92,6 +94,12 @@
 
     function q(sel) { return root.querySelector(sel); }
     function show(node, on) { if (node) { node.hidden = !on; } }
+    // Ao trocar de unidade, sobe para o topo do painel (mostra a nova região),
+    // como num checkout: cada unidade recomeça do início.
+    function scrollToUnit() {
+        var panel = root.querySelector('.projecao-calc__unit-panel');
+        if (panel && panel.scrollIntoView) { panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }
     function step(n) {
         var steps = root.querySelectorAll('[data-pc-step]');
         for (var i = 0; i < steps.length; i++) {
@@ -227,7 +235,12 @@
             state.electionId = elections[0].id;
             return api('/elections/' + state.electionId);
         }).then(function (election) {
-            state.scopes = (election.rules && election.rules.scopes) ? election.rules.scopes : ['estado'];
+            var rules = election.rules || {};
+            state.scopes = rules.scopes ? rules.scopes : ['estado'];
+            // Senado: até `seats` candidatos por partido e `seats` eleitos.
+            state.maxPerParty = rules.max_candidates_per_party ? rules.max_candidates_per_party : 1;
+            state.elects = rules.elects ? rules.elects : 1;
+            state.electionYear = election.year || null;
             renderScopeCards();
             step(2);
         }).catch(function (e) { setError(e.message); }).then(function () { loading(false); });
@@ -293,57 +306,62 @@
             label.appendChild(span);
             el.candidates.appendChild(label);
         });
+        updatePartyHint();
+        refreshPartyLocks();
     }
 
-    // Marca um candidato por partido (os demais ficam travados pela regra).
+    // Texto do limite por partido (1 padrão; Senado = `maxPerParty`).
+    function updatePartyHint() {
+        var hint = root.querySelector('.projecao-calc__cand-hint');
+        if (!hint) { return; }
+        var max = state.maxPerParty || 1;
+        hint.textContent = max > 1
+            ? '(no máximo ' + max + ' candidatos por partido)'
+            : '(no máximo um candidato por partido)';
+    }
+
+    // Trava candidatos quando o partido já atingiu o limite (maxPerParty).
+    function refreshPartyLocks() {
+        var max = state.maxPerParty || 1;
+        var cbs = el.candidates.querySelectorAll('input[type=checkbox]');
+        var counts = {}, i, cb, p, row;
+        for (i = 0; i < cbs.length; i++) {
+            cb = cbs[i]; p = cb.getAttribute('data-party');
+            if (cb.checked && p) { counts[p] = (counts[p] || 0) + 1; }
+        }
+        for (i = 0; i < cbs.length; i++) {
+            cb = cbs[i]; p = cb.getAttribute('data-party'); row = cb.parentNode;
+            if (!p) { continue; }
+            var block = !cb.checked && (counts[p] || 0) >= max;
+            cb.disabled = block;
+            if (row) { row.classList.toggle('is-disabled', block); }
+        }
+    }
+
+    // Marca até `maxPerParty` candidatos por partido.
     function selectAllCandidates() {
         var cbs = el.candidates.querySelectorAll('input[type=checkbox]');
-        var taken = {};
-        for (var i = 0; i < cbs.length; i++) {
-            var cb = cbs[i];
-            var row = cb.parentNode;
-            var p = cb.getAttribute('data-party');
-            cb.disabled = false;
-            if (p && taken[p]) {
-                cb.checked = false;
-                cb.disabled = true;
-                if (row) { row.classList.add('is-disabled'); }
-            } else {
-                cb.checked = true;
-                if (row) { row.classList.remove('is-disabled'); }
-                if (p) { taken[p] = true; }
-            }
+        var max = state.maxPerParty || 1, counts = {}, i, cb, p;
+        for (i = 0; i < cbs.length; i++) { cbs[i].checked = false; }
+        for (i = 0; i < cbs.length; i++) {
+            cb = cbs[i]; p = cb.getAttribute('data-party');
+            if (p && (counts[p] || 0) >= max) { continue; }
+            cb.checked = true;
+            if (p) { counts[p] = (counts[p] || 0) + 1; }
         }
+        refreshPartyLocks();
     }
 
     function clearCandidates() {
         var cbs = el.candidates.querySelectorAll('input[type=checkbox]');
-        for (var i = 0; i < cbs.length; i++) {
-            cbs[i].checked = false;
-            cbs[i].disabled = false;
-            if (cbs[i].parentNode) { cbs[i].parentNode.classList.remove('is-disabled'); }
-        }
+        for (var i = 0; i < cbs.length; i++) { cbs[i].checked = false; }
+        refreshPartyLocks();
     }
 
-    // Impede selecionar dois candidatos do mesmo partido: ao marcar um, desabilita os demais do partido.
+    // Ao marcar/desmarcar, reavalia os limites por partido.
     function onCandidateToggle(e) {
-        var cb = e.target;
-        if (!cb || cb.type !== 'checkbox') { return; }
-        var party = cb.getAttribute('data-party');
-        if (!party) { return; }
-        var others = el.candidates.querySelectorAll('input[type=checkbox][data-party="' + party + '"]');
-        for (var i = 0; i < others.length; i++) {
-            if (others[i] === cb) { continue; }
-            var row = others[i].parentNode;
-            if (cb.checked) {
-                others[i].checked = false;
-                others[i].disabled = true;
-                if (row) { row.classList.add('is-disabled'); }
-            } else {
-                others[i].disabled = false;
-                if (row) { row.classList.remove('is-disabled'); }
-            }
-        }
+        if (!e.target || e.target.type !== 'checkbox') { return; }
+        refreshPartyLocks();
     }
 
     // ---- Etapa 4: projeção unidade por unidade (mesma estrutura do front Laravel) ----
@@ -460,12 +478,17 @@
             .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     }
 
+    // URL do mapa (SVG) servido pelo plugin via SDK/API (mesma origem do blog).
+    function mapsUrl(key) {
+        return PROJECAO_WP.restBase + '/maps/' + key;
+    }
+
     // URL do mapa municipal do estado, quando o escopo é por unidade interna do estado.
     function stateMapUrl() {
         if (state.scope !== 'regiao_estado' && state.scope !== 'municipio') { return null; }
         var uf = state.stateUf ? String(state.stateUf).toUpperCase() : null;
         if (!uf || STATE_MAPS.indexOf(uf) === -1) { return null; }
-        return PROJECAO_WP.assetsUrl + 'maps/' + uf.toLowerCase() + '.svg';
+        return mapsUrl(uf.toLowerCase());
     }
 
     function loadSvg(url, cb) {
@@ -516,7 +539,7 @@
         } else {
             // Mapa nacional: ilumina por UF (região do país ou estado).
             paintMap(
-                PROJECAO_WP.assetsUrl + 'maps/br.svg',
+                mapsUrl('br'),
                 function (p) { return (p.getAttribute('data-uf') || '').toUpperCase(); },
                 unitUfs(u)
             );
@@ -570,6 +593,7 @@
             if (Math.abs(s - 100) >= 0.5) {
                 state.current = k;
                 renderUnit();
+                scrollToUnit();
                 setError('A soma da unidade "' + state.units[k].label + '" deve ser 100% (atual: ' + (Math.round(s * 10) / 10) + '%).');
                 return false;
             }
@@ -606,6 +630,7 @@
     }
 
     function renderResult(data) {
+        state.lastResult = data;
         var ranking = data.ranking || [];
         var total = data.total != null ? data.total : (data.total_votes != null ? data.total_votes : 0);
         var max = 0;
@@ -614,14 +639,23 @@
         var byId = {};
         state.candidates.forEach(function (c) { byId[c.id] = c; });
 
-        var html = '<ul class="projecao-calc__ranking">';
-        ranking.forEach(function (r) {
+        var elects = state.elects || 1;
+        var html = '';
+        if (elects > 1) {
+            html += '<p class="projecao-calc__elected-note">Os ' + elects + ' mais votados são eleitos.</p>';
+        }
+        html += '<ul class="projecao-calc__ranking">';
+        ranking.forEach(function (r, idx) {
             var w = max > 0 ? Math.round((r.percentage / max) * 100) : 0;
-            var av = avatarHtml(byId[r.candidate_id], 'projecao-calc__avatar--sm');
-            html += '<li>'
-                + '<div class="projecao-calc__rk-head"><strong>' + av + esc(r.name) + '</strong>'
+            var c = byId[r.candidate_id];
+            var av = avatarHtml(c, 'projecao-calc__avatar--sm');
+            var color = (c && c.color) ? c.color : (brandColor() || '#149ddd');
+            var elected = elects > 1 && idx < elects;
+            var badge = elected ? ' <span class="projecao-calc__badge">Eleito</span>' : '';
+            html += '<li' + (elected ? ' class="is-elected"' : '') + '>'
+                + '<div class="projecao-calc__rk-head"><strong>' + av + esc(r.name) + badge + '</strong>'
                 + '<span>' + (Math.round(r.percentage * 10) / 10) + '% · ' + formatInt(r.votes) + ' votos</span></div>'
-                + '<div class="projecao-calc__bar"><span style="width:' + w + '%"></span></div>'
+                + '<div class="projecao-calc__bar"><span style="width:' + w + '%;background:' + color + '"></span></div>'
                 + '</li>';
         });
         html += '</ul>';
@@ -635,6 +669,531 @@
 
     function formatInt(n) {
         return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    // ---- Projeção pública (somente leitura) via ?projecao=ID ----
+    // Busca a projeção salva na API (pelo SDK) e mostra o ranking + compartilhar.
+    function viewSavedProjection(id) {
+        loading(true); setError('');
+        var steps = root.querySelectorAll('[data-pc-step]');
+        for (var i = 0; i < steps.length; i++) { steps[i].hidden = true; }
+
+        api('/projections/' + id).then(function (proj) {
+            var electionId = proj.election ? proj.election.id : null;
+            state.office = { name: (proj.election && proj.election.office) ? proj.election.office : 'Projeção' };
+            state.electionYear = proj.election ? proj.election.year : null;
+            state.stateUf = (proj.election && proj.election.state) ? proj.election.state.uf : null;
+
+            var ranking = proj.ranking || [];
+            var total = 0;
+            ranking.forEach(function (r) { total += (r.votes || 0); });
+
+            var jobs = [];
+            if (electionId) {
+                jobs.push(api('/candidates', { query: { election_id: electionId } })
+                    .then(function (cs) { state.candidates = cs || []; })
+                    .catch(function () { state.candidates = []; }));
+                jobs.push(api('/elections/' + electionId)
+                    .then(function (e) { state.elects = (e && (e.elects || e.seats)) ? (e.elects || e.seats) : 1; })
+                    .catch(function () { state.elects = 1; }));
+            }
+            return Promise.all(jobs).then(function () {
+                renderSharedHeader(proj);
+                renderResult({ ranking: ranking, total: total, id: proj.id });
+                renderDetail(proj);
+            });
+        }).catch(function (e) {
+            var notFound = e && (e.status === 404 || /no query results|not found/i.test(e.message || ''));
+            showSharedNotice(
+                notFound ? 'Projeção não encontrada' : 'Não foi possível abrir a projeção',
+                notFound
+                    ? 'O link pode estar incorreto ou esta projeção não está mais disponível. Que tal fazer a sua?'
+                    : 'Tivemos um problema ao carregar esta projeção. Tente novamente em instantes.'
+            );
+        }).then(function () { loading(false); });
+    }
+
+    // Aviso amigável (projeção inexistente/indisponível) com atalho para a calculadora.
+    function showSharedNotice(title, msg) {
+        var steps = root.querySelectorAll('[data-pc-step]');
+        for (var i = 0; i < steps.length; i++) { steps[i].hidden = true; }
+        show(el.result, false);
+        setError('');
+
+        var calcUrl = ((typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.pageUrl) ? PROJECAO_WP.pageUrl : window.location.href).split('?')[0];
+        var box = root.querySelector('[data-pc-shared-notice]');
+        if (!box) {
+            box = document.createElement('div');
+            box.setAttribute('data-pc-shared-notice', '');
+            box.className = 'projecao-calc__shared-notice';
+            root.appendChild(box);
+        }
+        box.innerHTML =
+            '<div class="projecao-calc__notice-card">'
+            + '<div class="projecao-calc__notice-icon" aria-hidden="true">🔍</div>'
+            + '<h3 class="projecao-calc__notice-title">' + esc(title) + '</h3>'
+            + '<p class="projecao-calc__notice-text">' + esc(msg) + '</p>'
+            + '<a class="projecao-calc__notice-btn" href="' + calcUrl + '">Fazer a minha projeção</a>'
+            + '</div>';
+        box.hidden = false;
+    }
+
+    function renderSharedHeader(proj) {
+        if (!el.ranking || !el.ranking.parentNode) { return; }
+        var e = proj.election || {};
+        var sub = (e.office || '') + (e.year ? (' ' + e.year) : '') + (e.state ? (' - ' + e.state.uf) : '');
+
+        // Só exibe o analista se o nome for o do usuário logado do blog.
+        var me = (typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.userName) ? String(PROJECAO_WP.userName).trim().toLowerCase() : '';
+        var aName = (proj.analyst && proj.analyst.name) ? String(proj.analyst.name) : '';
+        var showAnalyst = me !== '' && aName.trim().toLowerCase() === me;
+
+        var head = document.createElement('div');
+        head.className = 'projecao-calc__shared-head';
+        head.innerHTML =
+            '<p class="projecao-calc__shared-kicker">Projeção publicada</p>'
+            + '<h3 class="projecao-calc__shared-title">' + esc(proj.title || 'Projeção') + '</h3>'
+            + (showAnalyst ? '<p class="projecao-calc__shared-analyst">Análise de ' + esc(aName) + '</p>' : '')
+            + (sub ? '<p class="projecao-calc__shared-sub">' + esc(sub) + '</p>' : '');
+        var prev = el.ranking.parentNode.querySelector('.projecao-calc__shared-head');
+        if (prev) { prev.parentNode.removeChild(prev); }
+        el.ranking.parentNode.insertBefore(head, el.ranking);
+    }
+
+    // Rótulo do escopo para o botão "Compartilhar ...".
+    function scopeShareLabel(scope) {
+        return scope === 'regiao' ? 'região do país'
+            : scope === 'regiao_estado' ? 'região do estado'
+                : scope === 'estado' ? 'estado'
+                    : scope === 'municipio' ? 'município' : 'unidade';
+    }
+
+    // Barras (cor do candidato) de uma unidade do detalhe.
+    function unitBarsHtml(u, byId) {
+        var cands = u.candidates || [];
+        var max = 0;
+        cands.forEach(function (c) { if (c.percentage > max) { max = c.percentage; } });
+        var h = '<ul class="projecao-calc__ranking projecao-calc__ranking--unit">';
+        cands.forEach(function (c) {
+            var w = max > 0 ? Math.round((c.percentage / max) * 100) : 0;
+            var cc = byId[c.candidate_id];
+            var color = (cc && cc.color) ? cc.color : (brandColor() || '#149ddd');
+            var party = (cc && cc.party && cc.party.acronym) ? cc.party.acronym : '';
+            h += '<li>'
+                + '<div class="projecao-calc__rk-head"><strong>' + esc(c.name)
+                + (party ? ' <span class="projecao-calc__party">' + esc(party) + '</span>' : '') + '</strong>'
+                + '<span>' + (Math.round((c.percentage || 0) * 10) / 10).toString().replace('.', ',') + '%</span></div>'
+                + '<div class="projecao-calc__bar"><span style="width:' + w + '%;background:' + color + '"></span></div>'
+                + '</li>';
+        });
+        h += '</ul>';
+        return h;
+    }
+
+    // "Detalhamento por região/estado/município" (accordion) com compartilhar por unidade.
+    function renderDetail(proj) {
+        var detail = proj.detail || [];
+        var box = root.querySelector('[data-pc-detail]');
+        if (!detail.length) { if (box) { box.hidden = true; } return; }
+        state.detailUnits = detail;
+        state.detailScope = proj.scope;
+
+        var byId = {};
+        state.candidates.forEach(function (c) { byId[c.id] = c; });
+
+        var titles = {
+            regiao: ['Detalhamento por região do país', 'Como o analista projetou cada região do país.'],
+            estado: ['Detalhamento por estado', 'Como o analista projetou cada estado.'],
+            regiao_estado: ['Detalhamento por região do estado', 'Como o analista projetou cada região do estado.'],
+            municipio: ['Detalhamento por município', 'Como o analista projetou cada município.']
+        };
+        var t = titles[proj.scope] || ['Detalhamento por unidade', 'Como o analista projetou cada unidade.'];
+        var shareLabel = scopeShareLabel(proj.scope);
+
+        var html = '<h3 class="projecao-calc__detail-title">' + esc(t[0]) + '</h3>'
+            + '<p class="projecao-calc__detail-sub">' + esc(t[1]) + '</p>'
+            + '<div class="projecao-calc__accordion">';
+        detail.forEach(function (u, idx) {
+            html += '<div class="projecao-calc__acc-item">'
+                + '<button type="button" class="projecao-calc__acc-head" data-pc-acc="' + idx + '" aria-expanded="false">'
+                + '<span class="projecao-calc__acc-name">' + esc(u.unit_name || ('Unidade ' + (idx + 1))) + '</span>'
+                + '<span class="projecao-calc__acc-votes">' + formatInt(u.valid_votes_base || 0) + ' votos válidos</span>'
+                + '<span class="projecao-calc__acc-chevron" aria-hidden="true"></span>'
+                + '</button>'
+                + '<div class="projecao-calc__acc-body" hidden>'
+                + '<div class="projecao-calc__acc-actions">'
+                + '<button type="button" class="projecao-calc__share-unit" data-pc-share-unit="' + idx + '">Compartilhar ' + esc(shareLabel) + '</button>'
+                + '</div>'
+                + unitBarsHtml(u, byId)
+                + '</div>'
+                + '</div>';
+        });
+        html += '</div>';
+
+        if (!box) {
+            box = document.createElement('div');
+            box.setAttribute('data-pc-detail', '');
+            box.className = 'projecao-calc__detail';
+            el.result.appendChild(box);
+        }
+        box.innerHTML = html;
+        box.hidden = false;
+    }
+
+    function toggleAccordion(btn) {
+        var body = btn.nextElementSibling;
+        if (!body) { return; }
+        var willOpen = body.hidden;
+        body.hidden = !willOpen;
+        btn.classList.toggle('is-open', willOpen);
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }
+
+    // ---- Compartilhar projeção (imagem gerada no navegador via canvas) ----
+    // Cor de marca definida pelo dono do blog; '' = usar a cor de cada candidato.
+    function brandColor() {
+        return (typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.barColor) ? PROJECAO_WP.barColor : '';
+    }
+
+    // URL (proxy mesma-origem) da foto do candidato, para entrar no canvas sem CORS.
+    function photoProxyUrl(c) {
+        if (!c || !c.photo_url || typeof PROJECAO_WP === 'undefined' || !PROJECAO_WP.restBase) { return ''; }
+        var base = PROJECAO_WP.restBase;
+        var sep = base.indexOf('?') === -1 ? '?' : '&';
+        return base + '/asset' + sep + 'u=' + encodeURIComponent(c.photo_url);
+    }
+
+    // URL do blog onde está a calculadora (sem esquema), para a chamada da imagem.
+    function blogUrlText() {
+        var u = (typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.pageUrl) ? PROJECAO_WP.pageUrl : '';
+        return u.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    }
+
+    // URL pública da projeção salva (?projecao=ID) — destino do QR Code/compartilhar.
+    function projectionUrl(id) {
+        var base = (typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.pageUrl) ? PROJECAO_WP.pageUrl : window.location.href;
+        if (!id) { return base; }
+        return base + (base.indexOf('?') === -1 ? '?' : '&') + 'projecao=' + id;
+    }
+
+    function currentShareUrl() {
+        var id = (state.lastResult && state.lastResult.id) ? state.lastResult.id : 0;
+        return projectionUrl(id);
+    }
+
+    // Gera os módulos do QR Code (lib qrcode-generator) ou null se indisponível.
+    function makeQr(text) {
+        if (typeof window.qrcode === 'undefined') { return null; }
+        try {
+            var qr = window.qrcode(0, 'M'); // tipo automático, correção média
+            qr.addData(String(text));
+            qr.make();
+            return qr;
+        } catch (e) { return null; }
+    }
+
+    function drawQr(g, qr, x, y, size) {
+        var n = qr.getModuleCount();
+        var cell = size / n;
+        g.fillStyle = '#000000';
+        for (var r = 0; r < n; r++) {
+            for (var c = 0; c < n; c++) {
+                if (qr.isDark(r, c)) {
+                    g.fillRect(Math.floor(x + c * cell), Math.floor(y + r * cell), Math.ceil(cell), Math.ceil(cell));
+                }
+            }
+        }
+    }
+
+    function roundRectPath(g, x, y, w, h, r) {
+        g.beginPath();
+        g.moveTo(x + r, y);
+        g.arcTo(x + w, y, x + w, y + h, r);
+        g.arcTo(x + w, y + h, x, y + h, r);
+        g.arcTo(x, y + h, x, y, r);
+        g.arcTo(x, y, x + w, y, r);
+        g.closePath();
+    }
+
+    // Luminância (0..1) para decidir cor de texto sobre a faixa inferior.
+    function isLightColor(hex) {
+        hex = String(hex || '').replace('#', '');
+        if (hex.length === 3) { hex = hex.replace(/(.)/g, '$1$1'); }
+        if (hex.length < 6) { return true; }
+        var r = parseInt(hex.substr(0, 2), 16) / 255;
+        var gg = parseInt(hex.substr(2, 2), 16) / 255;
+        var b = parseInt(hex.substr(4, 2), 16) / 255;
+        return (0.2126 * r + 0.7152 * gg + 0.0722 * b) > 0.6;
+    }
+
+    function loadImg(url) {
+        return new Promise(function (resolve) {
+            if (!url) { resolve(null); return; }
+            var im = new Image();
+            im.onload = function () { resolve(im); };
+            im.onerror = function () { resolve(null); };
+            im.src = url;
+        });
+    }
+
+    // Avatar circular: foto recortada se houver; senão círculo na cor + inicial.
+    function drawAvatar(g, img, color, cx, cy, r, initial) {
+        g.save();
+        g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.closePath(); g.clip();
+        if (img) {
+            var s = Math.max((2 * r) / img.width, (2 * r) / img.height);
+            var w = img.width * s, h = img.height * s;
+            g.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+        } else {
+            g.fillStyle = color; g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+            g.fillStyle = '#ffffff'; g.font = '700 ' + Math.round(r) + 'px Arial, sans-serif';
+            g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.fillText(initial, cx, cy + 1);
+            g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+        }
+        g.restore();
+        g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
+        g.lineWidth = 2; g.strokeStyle = color; g.stroke();
+    }
+
+    function electionLabelText() {
+        var name = state.office ? state.office.name : 'Eleição';
+        var yr = state.electionYear ? ' ' + state.electionYear : '';
+        var uf = state.stateUf ? ' - ' + state.stateUf : '';
+        return name + yr + uf;
+    }
+
+    // Trunca uma linha (com reticências) para caber na largura.
+    function fitLine(g, text, max) {
+        if (g.measureText(text).width <= max) { return text; }
+        while (text.length > 1 && g.measureText(text + '…').width > max) { text = text.slice(0, -1); }
+        return text + '…';
+    }
+
+    // Quebra um texto em várias linhas conforme a largura.
+    function wrapLines(g, text, max) {
+        var words = String(text).split(' '), lines = [], line = '';
+        for (var i = 0; i < words.length; i++) {
+            var t = line ? (line + ' ' + words[i]) : words[i];
+            if (g.measureText(t).width > max && line) { lines.push(line); line = words[i]; }
+            else { line = t; }
+        }
+        if (line) { lines.push(line); }
+        return lines;
+    }
+
+    function buildShareCanvas(imgs, rankingArg, opts) {
+        opts = opts || {};
+        var titleSuffix = opts.titleSuffix || ''; // nome da unidade, ao lado do título
+        var subtitle = opts.subtitle || '';       // frase descritiva (fonte menor)
+        var data = state.lastResult || {};
+        var ranking = (rankingArg || data.ranking || []).slice(0, 10);
+        var elects = state.elects || 1;
+        var P = (typeof PROJECAO_WP !== 'undefined') ? PROJECAO_WP : {};
+        var headerBg = P.headerBg || '#03172d';       // fundo da div do topo
+        var headerText = P.headerText || '#ffffff';   // fonte da div do topo
+        var footerBg = P.footerColor || '#f4f7fb';    // fundo da div de baixo
+        var footerText = P.footerText || '#03172d';   // fonte da div de baixo
+        var accent = '#149ddd';                       // acento do corpo (kicker)
+        var legal = P.footer || '';
+        var blog = blogUrlText();
+        var byId = {};
+        state.candidates.forEach(function (c) { byId[c.id] = c; });
+
+        var W = 1080, pad = 56, headerH = 150, ctxH = subtitle ? 116 : 92, rowH = 96, footerH = 240;
+        var H = headerH + ctxH + ranking.length * rowH + footerH;
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var g = cv.getContext('2d');
+
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+        g.fillStyle = headerBg; g.fillRect(0, 0, W, headerH);
+        g.fillStyle = headerText; g.font = '700 42px Arial, sans-serif'; g.fillText('Projeção Eleitoral', pad, 72);
+        g.globalAlpha = 0.8; g.fillStyle = headerText; g.font = '20px Arial, sans-serif';
+        g.fillText(blog || 'Minha projeção', pad, 110); g.globalAlpha = 1;
+
+        var y = headerH + 50;
+        g.fillStyle = accent; g.font = '700 18px Arial, sans-serif'; g.fillText('MINHA PROJEÇÃO', pad, y);
+        y += 32;
+        g.fillStyle = '#28323c'; g.font = '600 28px Arial, sans-serif';
+        var titleText = electionLabelText() + (titleSuffix ? ' · ' + titleSuffix : '');
+        g.fillText(fitLine(g, titleText, W - 2 * pad), pad, y);
+        var noteY = y + 22;
+        if (subtitle) {
+            g.fillStyle = '#28323c'; g.font = '600 17px Arial, sans-serif';
+            g.fillText(fitLine(g, subtitle, W - 2 * pad), pad, noteY);
+            noteY += 22;
+        }
+        if (elects > 1) {
+            g.fillStyle = '#8a949e'; g.font = '15px Arial, sans-serif';
+            g.fillText('Os ' + elects + ' mais votados são eleitos.', pad, noteY);
+        }
+
+        var top = headerH + ctxH, av = 54, cLeft = pad + av + 18, right = W - pad;
+        ranking.forEach(function (r, i) {
+            var ry = top + i * rowH + 36;
+            var c = byId[r.candidate_id];
+            var ccolor = (c && c.color) ? c.color : accent; // sempre a cor do candidato
+            var initial = ((r.name || '?').charAt(0)).toUpperCase();
+            drawAvatar(g, imgs ? imgs[i] : null, ccolor, pad + av / 2, ry - 16, av / 2, initial);
+
+            var nm = (i + 1) + 'º ' + (r.name || '');
+            g.fillStyle = '#28323c'; g.font = '600 22px Arial, sans-serif';
+            var nmFit = fitLine(g, nm, right - cLeft - 200);
+            g.fillText(nmFit, cLeft, ry);
+            if (elects > 1 && i < elects) {
+                var nw = g.measureText(nmFit).width;
+                g.fillStyle = ccolor; g.font = '700 14px Arial, sans-serif'; g.fillText('ELEITO', cLeft + nw + 12, ry - 1);
+            }
+
+            var pct = (Math.round((r.percentage || 0) * 10) / 10).toString().replace('.', ',') + '%';
+            g.fillStyle = '#28323c'; g.font = '700 22px Arial, sans-serif'; g.textAlign = 'right';
+            g.fillText(pct, right, ry); g.textAlign = 'left';
+
+            var by = ry + 16;
+            g.fillStyle = '#eef1f5'; g.fillRect(cLeft, by, right - cLeft, 14);
+            var w = Math.round((right - cLeft) * Math.min(100, Math.max(0, r.percentage || 0)) / 100);
+            g.fillStyle = ccolor; g.fillRect(cLeft, by, w, 14);
+
+            if (r.votes) {
+                g.fillStyle = '#96a0aa'; g.font = '13px Arial, sans-serif'; g.textAlign = 'right';
+                g.fillText('≈ ' + formatInt(r.votes) + ' votos', right, by + 32); g.textAlign = 'left';
+            }
+        });
+
+        // Faixa inferior (fundo/fonte configuráveis) com QR Code à esquerda e CTA à direita.
+        var ft = H - footerH;
+        g.fillStyle = footerBg; g.fillRect(0, ft, W, footerH);
+
+        var qr = makeQr(currentShareUrl());
+        var qrSize = 130, qrPad = 12, cardSize = qrSize + 2 * qrPad;
+        var cardX = pad, cardY = ft + 30, textX = pad;
+        if (qr) {
+            g.save();
+            g.fillStyle = '#ffffff';
+            roundRectPath(g, cardX, cardY, cardSize, cardSize, 12); g.fill();
+            drawQr(g, qr, cardX + qrPad, cardY + qrPad, qrSize);
+            g.restore();
+            textX = cardX + cardSize + 26;
+        }
+
+        var ty = ft + 56;
+        g.fillStyle = footerText; g.font = '700 30px Arial, sans-serif';
+        g.fillText('Faça a sua', textX, ty);
+        g.fillText('projeção também', textX, ty + 34);
+        g.globalAlpha = 0.72; g.fillStyle = footerText; g.font = '15px Arial, sans-serif';
+        if (qr) { g.fillText('Aponte a câmera para o QR Code', textX, ty + 62); }
+        g.globalAlpha = 1;
+        if (blog) {
+            g.fillStyle = footerText; g.font = '600 17px Arial, sans-serif';
+            g.fillText(blog, textX, ty + (qr ? 88 : 62));
+        }
+
+        g.globalAlpha = 0.72; g.fillStyle = footerText; g.font = '12px Arial, sans-serif';
+        var lines = wrapLines(g, legal, W - 2 * pad);
+        var ly = ft + footerH - 14 - (lines.length - 1) * 16;
+        lines.forEach(function (ln) { g.fillText(ln, pad, ly); ly += 16; });
+        g.globalAlpha = 1;
+
+        return cv;
+    }
+
+    function shareProjection() {
+        if (!state.lastResult) { setError('Calcule ou salve a projeção antes de compartilhar.'); return; }
+        shareFlow((state.lastResult.ranking || []).slice(0, 10), null);
+    }
+
+    // Frase de escopo: "no município de X", "no estado de X", "na região X".
+    function scopePhrase(scope, name) {
+        if (scope === 'municipio') { return 'no município de ' + name; }
+        if (scope === 'estado') { return 'no estado de ' + name; }
+        return 'na região ' + name; // regiao (país) e regiao_estado (macrorregião)
+    }
+
+    // Compartilha uma unidade específica do detalhe (região/estado/município).
+    function shareUnit(idx) {
+        var u = state.detailUnits && state.detailUnits[idx];
+        if (!u) { return; }
+        var ranking = (u.candidates || []).map(function (c) {
+            return { candidate_id: c.candidate_id, name: c.name, percentage: c.percentage, votes: c.votes };
+        });
+        var office = (state.office && state.office.name) ? state.office.name.toLowerCase() : 'esse cargo';
+        var subtitle = 'Essa é a minha projeção de votação para ' + office + ' ' + scopePhrase(state.detailScope, u.unit_name) + '.';
+        shareFlow(ranking.slice(0, 10), { titleSuffix: u.unit_name, subtitle: subtitle });
+    }
+
+    // Pré-carrega as fotos (proxy, mesma origem), desenha a imagem e dispara o compartilhar.
+    function shareFlow(ranking, opts) {
+        var byId = {};
+        state.candidates.forEach(function (c) { byId[c.id] = c; });
+        var urls = ranking.map(function (r) { return photoProxyUrl(byId[r.candidate_id]); });
+        loading(true);
+        Promise.all(urls.map(loadImg)).then(function (imgs) {
+            loading(false);
+            var cv = buildShareCanvas(imgs, ranking, opts);
+            cv.toBlob(function (blob) { if (blob) { shareImage(blob); } }, 'image/png');
+        });
+    }
+
+    // Abre a caixa de compartilhamento NATIVA com a imagem (celular e desktops
+    // compatíveis). Onde o envio de arquivo não é suportado, abre uma caixa
+    // própria com botões de rede social, copiar e baixar — nunca salva direto.
+    function shareImage(blob) {
+        var url = currentShareUrl();
+        var text = (typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.shareText) ? PROJECAO_WP.shareText : 'Veja a minha projeção eleitoral e faça a sua.';
+        try {
+            var file = new File([blob], 'projecao-eleitoral.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({ files: [file], title: 'Minha projeção eleitoral', text: text })
+                    .catch(function (err) { if (!err || err.name !== 'AbortError') { openShareModal(blob, url, text); } });
+                return;
+            }
+        } catch (e) { /* abre a caixa própria abaixo */ }
+        openShareModal(blob, url, text);
+    }
+
+    // Caixa de compartilhamento própria (fallback) com preview e ações.
+    function openShareModal(blob, url, text) {
+        var imgUrl = URL.createObjectURL(blob);
+        var enc = encodeURIComponent;
+        var sUrl = enc(url), sFull = enc(text + ' ' + url), sTxt = enc(text);
+
+        var ov = document.createElement('div');
+        ov.className = 'projecao-calc__share-modal';
+        ov.innerHTML =
+            '<div class="pc-sm__box" role="dialog" aria-modal="true">'
+            + '<button type="button" class="pc-sm__close" aria-label="Fechar">&times;</button>'
+            + '<h3 class="pc-sm__title">Compartilhar projeção</h3>'
+            + '<img class="pc-sm__img" alt="Imagem da projeção" src="' + imgUrl + '">'
+            + '<div class="pc-sm__btns">'
+            + '<a class="pc-sm__btn pc-sm__wa" target="_blank" rel="noopener" href="https://wa.me/?text=' + sFull + '">WhatsApp</a>'
+            + '<a class="pc-sm__btn pc-sm__tg" target="_blank" rel="noopener" href="https://t.me/share/url?url=' + sUrl + '&text=' + sTxt + '">Telegram</a>'
+            + '<a class="pc-sm__btn pc-sm__tw" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=' + sTxt + '&url=' + sUrl + '">X</a>'
+            + '<a class="pc-sm__btn pc-sm__fb" target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u=' + sUrl + '">Facebook</a>'
+            + '<button type="button" class="pc-sm__btn pc-sm__copy">Copiar imagem</button>'
+            + '<a class="pc-sm__btn pc-sm__dl" download="projecao-eleitoral.png" href="' + imgUrl + '">Baixar imagem</a>'
+            + '</div>'
+            + '<p class="pc-sm__hint">Os botões encaminham o link da projeção. Para postar junto com a imagem, use “Copiar imagem” e cole na sua publicação.</p>'
+            + '</div>';
+        document.body.appendChild(ov);
+
+        function close() {
+            if (ov.parentNode) { ov.parentNode.removeChild(ov); }
+            setTimeout(function () { URL.revokeObjectURL(imgUrl); }, 500);
+        }
+        ov.addEventListener('click', function (e) { if (e.target === ov) { close(); } });
+        ov.querySelector('.pc-sm__close').addEventListener('click', close);
+
+        var copyBtn = ov.querySelector('.pc-sm__copy');
+        copyBtn.addEventListener('click', function () {
+            if (navigator.clipboard && window.ClipboardItem) {
+                navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })])
+                    .then(function () { copyBtn.textContent = 'Imagem copiada!'; })
+                    .catch(function () { copyBtn.textContent = 'Não deu para copiar'; });
+            } else {
+                copyBtn.textContent = 'Sem suporte a copiar';
+            }
+        });
     }
 
     // ---- Eventos ----
@@ -661,19 +1220,31 @@
         } else if (t.hasAttribute('data-pc-clear')) {
             clearCandidates();
         } else if (t.hasAttribute('data-pc-unit-prev')) {
-            if (state.current > 0) { state.current--; setError(''); renderUnit(); }
+            if (state.current > 0) { state.current--; setError(''); renderUnit(); scrollToUnit(); }
         } else if (t.hasAttribute('data-pc-unit-next')) {
             if (!validUnit()) {
                 setError('A soma desta unidade deve ser 100% (atual: ' + (Math.round(unitTotal() * 10) / 10) + '%).');
                 return;
             }
-            if (state.current < state.units.length - 1) { state.current++; setError(''); renderUnit(); }
+            if (state.current < state.units.length - 1) { state.current++; setError(''); renderUnit(); scrollToUnit(); }
         } else if (t.hasAttribute('data-pc-preview')) {
             submit('/preview');
         } else if (t.hasAttribute('data-pc-save')) {
             submit('/projections');
+        } else if (t.hasAttribute('data-pc-share')) {
+            shareProjection();
+        } else if (t.closest && t.closest('[data-pc-share-unit]')) {
+            shareUnit(parseInt(t.closest('[data-pc-share-unit]').getAttribute('data-pc-share-unit'), 10));
+        } else if (t.closest && t.closest('[data-pc-acc]')) {
+            toggleAccordion(t.closest('[data-pc-acc]'));
         }
     });
 
-    loadOffices();
+    // ?projecao=ID → exibe a projeção salva (somente leitura); senão, o assistente.
+    var viewId = (typeof PROJECAO_WP !== 'undefined' && PROJECAO_WP.viewProjection) ? parseInt(PROJECAO_WP.viewProjection, 10) : 0;
+    if (viewId > 0) {
+        viewSavedProjection(viewId);
+    } else {
+        loadOffices();
+    }
 })();

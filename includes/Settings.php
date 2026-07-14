@@ -60,6 +60,11 @@ class Settings
         $clientId = isset($input['client_id']) ? sanitize_text_field(trim($input['client_id'])) : $current['client_id'];
         $origin = isset($input['origin']) ? esc_url_raw(trim($input['origin'])) : $current['origin'];
         $timeout = isset($input['timeout']) ? (int) $input['timeout'] : $current['timeout'];
+        $headerBg = isset($input['header_bg']) ? sanitize_hex_color($input['header_bg']) : $current['header_bg'];
+        $headerText = isset($input['header_text']) ? sanitize_hex_color($input['header_text']) : $current['header_text'];
+        $footerColor = isset($input['footer_color']) ? sanitize_hex_color($input['footer_color']) : $current['footer_color'];
+        $footerText = isset($input['footer_text']) ? sanitize_hex_color($input['footer_text']) : $current['footer_text'];
+        $shareText = isset($input['share_text']) ? sanitize_textarea_field($input['share_text']) : $current['share_text'];
 
         // Secret: campo em branco mantém o atual (não sobrescreve com vazio).
         $clientSecret = $current['client_secret'];
@@ -76,6 +81,11 @@ class Settings
             'client_secret' => $clientSecret,
             'origin' => $origin,
             'timeout' => $timeout > 0 ? $timeout : 15,
+            'header_bg' => $headerBg ? $headerBg : $this->defaults()['header_bg'],
+            'header_text' => $headerText ? $headerText : $this->defaults()['header_text'],
+            'footer_color' => $footerColor ? $footerColor : $this->defaults()['footer_color'],
+            'footer_text' => $footerText ? $footerText : $this->defaults()['footer_text'],
+            'share_text' => $shareText !== '' ? $shareText : $this->defaults()['share_text'],
         );
     }
 
@@ -106,7 +116,67 @@ class Settings
             'client_secret' => '',
             'origin' => '',
             'timeout' => 15,
+            'header_bg' => '#03172d',
+            'header_text' => '#ffffff',
+            'footer_color' => '#f4f7fb',
+            'footer_text' => '#03172d',
+            'share_text' => 'Veja a minha projeção eleitoral e faça a sua.',
         );
+    }
+
+    /**
+     * Texto (legenda) que acompanha a imagem ao compartilhar.
+     *
+     * @return string
+     */
+    public function getShareText()
+    {
+        $all = $this->all();
+        return ! empty($all['share_text']) ? $all['share_text'] : $this->defaults()['share_text'];
+    }
+
+    /**
+     * Cor de fundo da faixa superior (topo) da imagem de compartilhamento.
+     *
+     * @return string
+     */
+    public function getHeaderBg()
+    {
+        $all = $this->all();
+        return ! empty($all['header_bg']) ? $all['header_bg'] : $this->defaults()['header_bg'];
+    }
+
+    /**
+     * Cor da fonte da faixa superior (topo) da imagem de compartilhamento.
+     *
+     * @return string
+     */
+    public function getHeaderText()
+    {
+        $all = $this->all();
+        return ! empty($all['header_text']) ? $all['header_text'] : $this->defaults()['header_text'];
+    }
+
+    /**
+     * Cor de fundo da faixa inferior (rodapé) da imagem de compartilhamento.
+     *
+     * @return string
+     */
+    public function getFooterColor()
+    {
+        $all = $this->all();
+        return ! empty($all['footer_color']) ? $all['footer_color'] : $this->defaults()['footer_color'];
+    }
+
+    /**
+     * Cor da fonte da faixa inferior (rodapé) da imagem de compartilhamento.
+     *
+     * @return string
+     */
+    public function getFooterText()
+    {
+        $all = $this->all();
+        return ! empty($all['footer_text']) ? $all['footer_text'] : $this->defaults()['footer_text'];
     }
 
     /**

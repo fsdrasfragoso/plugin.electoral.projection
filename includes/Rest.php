@@ -115,6 +115,27 @@ class Rest
                 return $this->run(function ($sdk) use ($r) { return $sdk->sendProjection($this->buildProjection($r->get_json_params())); });
             },
         ));
+
+        // Detalhe de uma projeção salva (para exibir a projeção pública via QR).
+        register_rest_route(self::NS, '/projections/(?P<id>\d+)', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->cachedRun($r, 'projection', function ($sdk) use ($r) { return $sdk->projection((int) $r['id']); });
+            },
+        ));
+
+        // Proxy de imagem (mesma origem): permite a foto do candidato entrar no
+        // canvas da imagem de compartilhamento sem problema de CORS.
+        register_rest_route(self::NS, '/asset', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => array($this, 'proxyAsset'),
+        ));
+
+        // Mapa SVG (país/UF) servido pela API via SDK, na mesma origem do blog.
+        register_rest_route(self::NS, '/maps/(?P<key>[A-Za-z]{2})', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => array($this, 'mapSvg'),
+        ));
     }
 
     // ------------------------------------------------------------------
@@ -124,6 +145,90 @@ class Rest
     public function publicPermission()
     {
         return true; // leitura pública (a calculadora é pública)
+    }
+
+    /**
+     * Repassa (stream) uma imagem do domínio da API configurada, na mesma origem
+     * do blog, para que o canvas de compartilhamento não fique "tainted" (CORS).
+     * Restrito ao base_url (anti-SSRF) e a content-type de imagem.
+     *
+     * @param WP_REST_Request $request
+     * @return WP_Error|void
+     */
+    public function proxyAsset(WP_REST_Request $request)
+    {
+        $url = (string) $request->get_param('u');
+        $base = rtrim((string) $this->settings->getBaseUrl(), '/');
+
+        if ($url === '' || $base === '' || strpos($url, $base . '/') !== 0) {
+            return new WP_Error('rest_forbidden', __('URL não permitida.', 'projecao-eleitoral'), array('status' => 403));
+        }
+
+        $resp = wp_remote_get($url, array('timeout' => 10));
+        if (is_wp_error($resp) || (int) wp_remote_retrieve_response_code($resp) !== 200) {
+            return new WP_Error('rest_not_found', __('Imagem indisponível.', 'projecao-eleitoral'), array('status' => 404));
+        }
+
+        $ctype = wp_remote_retrieve_header($resp, 'content-type');
+        if (! is_string($ctype) || strpos($ctype, 'image/') !== 0) {
+            return new WP_Error('rest_forbidden', __('Conteúdo inválido.', 'projecao-eleitoral'), array('status' => 415));
+        }
+
+        $body = wp_remote_retrieve_body($resp);
+        if (! headers_sent()) {
+            header('Content-Type: ' . $ctype);
+            header('Content-Length: ' . strlen($body));
+            header('Cache-Control: public, max-age=86400');
+        }
+        echo $body; // phpcs:ignore WordPress.Security.EscapeOutput
+        exit;
+    }
+
+    /**
+     * Devolve o SVG de um mapa ('br' ou UF) na mesma origem do blog. Busca via
+     * SDK (API) e cacheia; se a API não tiver o mapa, usa o SVG empacotado no
+     * plugin como fallback. Sempre serve SVG cru (o front faz fetch().text()).
+     *
+     * @param WP_REST_Request $request
+     * @return WP_Error|void
+     */
+    public function mapSvg(WP_REST_Request $request)
+    {
+        $key = strtolower((string) $request['key']);
+        if (! preg_match('/^[a-z]{2}$/', $key)) {
+            return new WP_Error('rest_not_found', __('Mapa inválido.', 'projecao-eleitoral'), array('status' => 404));
+        }
+
+        $tname = 'pc_map_' . $key;
+        $svg = get_transient($tname);
+
+        if (! is_string($svg) || strpos($svg, '<svg') === false) {
+            // 1) API via SDK (fonte oficial).
+            try {
+                $svg = (new SdkClient($this->settings))->make()->map($key);
+            } catch (\Exception $e) {
+                $svg = null;
+            }
+            // 2) Fallback: SVG empacotado no plugin.
+            if (! is_string($svg) || strpos($svg, '<svg') === false) {
+                $local = PROJECAO_WP_DIR . 'assets/maps/' . $key . '.svg';
+                $svg = is_file($local) ? file_get_contents($local) : null;
+            }
+            if (is_string($svg) && strpos($svg, '<svg') !== false) {
+                set_transient($tname, $svg, DAY_IN_SECONDS);
+            }
+        }
+
+        if (! is_string($svg) || strpos($svg, '<svg') === false) {
+            return new WP_Error('rest_not_found', __('Mapa indisponível.', 'projecao-eleitoral'), array('status' => 404));
+        }
+
+        if (! headers_sent()) {
+            header('Content-Type: image/svg+xml; charset=utf-8');
+            header('Cache-Control: public, max-age=86400');
+        }
+        echo $svg; // phpcs:ignore WordPress.Security.EscapeOutput
+        exit;
     }
 
     /**
@@ -264,7 +369,13 @@ class Rest
         if (!empty($params['analyzed_at'])) {
             $req->setAnalyzedAt((string) $params['analyzed_at']);
         }
-        if (!empty($params['analyst']) && is_array($params['analyst'])) {
+        // Analista = usuário logado do blog (se houver). É o nome real de quem
+        // fez a projeção; sem login, fica a cargo da API (sem analista nomeado).
+        $user = function_exists('wp_get_current_user') ? wp_get_current_user() : null;
+        if ($user && $user->exists()) {
+            $name = $user->display_name ? $user->display_name : $user->user_login;
+            $req->setAnalyst($name, $user->user_email ? $user->user_email : null);
+        } elseif (!empty($params['analyst']) && is_array($params['analyst'])) {
             $req->setAnalyst(
                 isset($params['analyst']['name']) ? $params['analyst']['name'] : null,
                 isset($params['analyst']['email']) ? $params['analyst']['email'] : null

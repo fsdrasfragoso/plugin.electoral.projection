@@ -134,6 +134,17 @@ final class Client
     }
 
     /**
+     * SVG de um mapa: 'br' (país) ou a UF (ex.: 'ce' = mapa municipal do estado).
+     *
+     * @param string $key
+     * @return string  conteúdo do SVG
+     */
+    public function map($key)
+    {
+        return $this->dataOf($this->get('/api/v1/maps/' . rawurlencode($key)));
+    }
+
+    /**
      * Candidatos por eleição e/ou cargo (state_id obrigatório p/ cargo estadual).
      *
      * @param array $filters  election_id, political_office_id, state_id, municipality_id, year

@@ -95,8 +95,14 @@ if (!defined('ABSPATH')) {
     <section class="projecao-calc__result" data-pc-result hidden>
         <h3 class="projecao-calc__step-title"><?php esc_html_e('Resultado', 'projecao-eleitoral'); ?></h3>
         <div data-pc-ranking></div>
+        <div class="projecao-calc__share-actions">
+            <button type="button" class="projecao-calc__btn" data-pc-share>
+                <?php esc_html_e('Compartilhar projeção', 'projecao-eleitoral'); ?>
+            </button>
+        </div>
     </section>
 
     <div class="projecao-calc__loading" data-pc-loading hidden><?php esc_html_e('Carregando…', 'projecao-eleitoral'); ?></div>
     <p class="projecao-calc__credit"><?php esc_html_e('Powered by Fragoso Software', 'projecao-eleitoral'); ?></p>
+    <p class="projecao-calc__legal"><?php echo esc_html(\Fragososoftware\ProjecaoWp\Shortcode::FOOTER_LEGAL); ?></p>
 </div>
