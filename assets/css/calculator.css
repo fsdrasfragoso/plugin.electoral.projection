@@ -24,6 +24,10 @@
 .projecao-calc select,
 .projecao-calc input[type="number"],
 .projecao-calc input[type="text"] {
+    box-sizing: border-box;
+    height: auto;
+    min-height: 2.6rem;
+    line-height: 1.4;
     padding: .5rem .6rem;
     border: 1px solid var(--pc-border);
     border-radius: 6px;
@@ -31,6 +35,15 @@
     background: #fff;
     color: #111;
     min-width: 220px;
+    max-width: 100%;
+    vertical-align: middle;
+}
+
+/* Mantém a aparência nativa do select mesmo em temas que zeram appearance. */
+.projecao-calc select {
+    -webkit-appearance: menulist;
+    appearance: auto;
+    padding-right: 1.8rem;
 }
 
 .projecao-calc__actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }

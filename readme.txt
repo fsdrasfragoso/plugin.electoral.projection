@@ -4,7 +4,7 @@ Tags: eleições, projeções, calculadora, simulação
 Requires at least: 5.6
 Tested up to: 6.6
 Requires PHP: 7.0
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 License: Proprietary
 
 Calculadora de simulações e projeções eleitorais integrada ao seu tema. Basta informar o client_id e o client_secret da sua aplicação.
