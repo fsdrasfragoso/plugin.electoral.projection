@@ -39,6 +39,14 @@ if (!defined('ABSPATH')) {
     <!-- Etapa 3: candidatos -->
     <section class="projecao-calc__step" data-pc-step="3" hidden>
         <h3 class="projecao-calc__step-title"><?php esc_html_e('3. Candidatos', 'projecao-eleitoral'); ?></h3>
+
+        <!-- Turno: preenchido por JS; oculto quando a eleição não tem 2º turno (Senado). -->
+        <div class="projecao-calc__turn" data-pc-turn-wrap hidden>
+            <span class="projecao-calc__turn-label"><?php esc_html_e('Turno', 'projecao-eleitoral'); ?></span>
+            <div class="projecao-calc__turn-options" data-pc-turns></div>
+            <small class="projecao-calc__turn-hint" data-pc-turn-hint></small>
+        </div>
+
         <div class="projecao-calc__cand-tools">
             <button type="button" class="projecao-calc__link" data-pc-select-all><?php esc_html_e('Selecionar todos', 'projecao-eleitoral'); ?></button>
             <span class="projecao-calc__sep">·</span>

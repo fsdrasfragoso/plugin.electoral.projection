@@ -83,6 +83,18 @@
 .projecao-calc__btn:hover { filter: brightness(.95); }
 .projecao-calc__btn--ghost { background: transparent; color: var(--pc-accent); }
 
+/* Seletor de turno (etapa de candidatos) */
+.projecao-calc__turn { margin: 0 0 1rem; }
+.projecao-calc__turn-label { display: block; font-weight: 600; margin-bottom: .4rem; }
+.projecao-calc__turn-options { display: inline-flex; border: 1px solid var(--pc-accent); border-radius: 6px; overflow: hidden; }
+.projecao-calc__turn-btn {
+    appearance: none; border: none; background: transparent; color: var(--pc-accent);
+    padding: .45rem 1rem; font: inherit; font-weight: 600; cursor: pointer;
+}
+.projecao-calc__turn-btn + .projecao-calc__turn-btn { border-left: 1px solid var(--pc-accent); }
+.projecao-calc__turn-btn.is-active { background: var(--pc-accent); color: #fff; }
+.projecao-calc__turn-hint { display: block; color: var(--pc-muted); font-size: .85rem; margin-top: .4rem; }
+
 .projecao-calc__cand-tools { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; margin: .25rem 0 .5rem; }
 .projecao-calc__link {
     appearance: none; border: none; background: none; padding: 0; cursor: pointer;

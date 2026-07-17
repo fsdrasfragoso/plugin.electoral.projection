@@ -61,7 +61,10 @@
         statesById: {},    // id do estado -> UF
         stateUf: null,     // UF do estado selecionado (cargos estaduais)
         maxPerParty: 1,    // candidatos por partido (Senado = 2)
-        elects: 1          // quantos são eleitos (Senado = 2)
+        elects: 1,         // quantos são eleitos (Senado = 2)
+        hasRunoff: true,   // eleição tem 2º turno? (Senado = false)
+        turns: [],         // regras de turno vindas da API [{turn,min_candidates,max_candidates}]
+        turn: 1            // turno escolhido (1 ou 2)
     };
 
     var el = {
@@ -71,6 +74,9 @@
         stateWrap: q('[data-pc-state-wrap]'),
         state: q('[data-pc-state]'),
         scopes: q('[data-pc-scopes]'),
+        turnWrap: q('[data-pc-turn-wrap]'),
+        turns: q('[data-pc-turns]'),
+        turnHint: q('[data-pc-turn-hint]'),
         candidates: q('[data-pc-candidates]'),
         result: q('[data-pc-result]'),
         ranking: q('[data-pc-ranking]'),
@@ -241,6 +247,10 @@
             // Senado: até `seats` candidatos por partido e `seats` eleitos.
             state.maxPerParty = rules.max_candidates_per_party ? rules.max_candidates_per_party : 1;
             state.elects = rules.elects ? rules.elects : 1;
+            // Turno: só é perguntado quando a eleição tem 2º turno (Senado não tem).
+            state.hasRunoff = rules.has_runoff !== false;
+            state.turns = (rules.turns && rules.turns.length) ? rules.turns : [{ turn: 1, min_candidates: 2, max_candidates: null }];
+            state.turn = state.turns[0].turn;
             state.electionYear = election.year || null;
             renderScopeCards();
             step(2);
@@ -309,6 +319,56 @@
         });
         updatePartyHint();
         refreshPartyLocks();
+        renderTurns();
+    }
+
+    // Regra do turno atualmente escolhido (min/max de candidatos).
+    function currentTurnRule() {
+        for (var i = 0; i < state.turns.length; i++) {
+            if (state.turns[i].turn === state.turn) { return state.turns[i]; }
+        }
+        return state.turns[0] || { turn: 1, min_candidates: 2, max_candidates: null };
+    }
+
+    // Seletor de turno (1º/2º). Oculto quando a eleição não tem 2º turno (Senado)
+    // ou quando há um único turno disponível.
+    function renderTurns() {
+        if (!el.turnWrap) { return; }
+
+        var show2 = state.hasRunoff && state.turns.length > 1;
+        show(el.turnWrap, show2);
+        if (!show2) { return; }
+
+        el.turns.innerHTML = '';
+        state.turns.forEach(function (t) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'projecao-calc__turn-btn' + (t.turn === state.turn ? ' is-active' : '');
+            b.setAttribute('data-turn', t.turn);
+            b.textContent = t.turn + 'º turno';
+            el.turns.appendChild(b);
+        });
+        updateTurnHint();
+    }
+
+    function updateTurnHint() {
+        if (!el.turnHint) { return; }
+        var r = currentTurnRule();
+        el.turnHint.textContent = (state.turn === 2)
+            ? 'Escolha exatamente 2 candidatos (disputa do 2º turno).'
+            : 'Escolha ao menos ' + (r.min_candidates || 3) + ' candidatos.';
+    }
+
+    // Troca o turno ao clicar; reavalia limites e dica.
+    function onTurnClick(e) {
+        var b = e.target.closest ? e.target.closest('[data-turn]') : null;
+        if (!b) { return; }
+        state.turn = parseInt(b.getAttribute('data-turn'), 10) || 1;
+        var btns = el.turns.querySelectorAll('[data-turn]');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.toggle('is-active', parseInt(btns[i].getAttribute('data-turn'), 10) === state.turn);
+        }
+        updateTurnHint();
     }
 
     // Texto do limite por partido (1 padrão; Senado = `maxPerParty`).
@@ -370,7 +430,13 @@
         var checked = el.candidates.querySelectorAll('input[type=checkbox]:checked');
         state.selected = [];
         for (var i = 0; i < checked.length; i++) { state.selected.push(parseInt(checked[i].value, 10)); }
-        if (state.selected.length < 2) { setError('Selecione ao menos 2 candidatos.'); return; }
+
+        // Limites por turno (min/max vindos da API). 2º turno = exatamente 2.
+        var rule = currentTurnRule();
+        var min = rule.min_candidates || 2;
+        var max = rule.max_candidates || null;
+        if (state.selected.length < min) { setError('Selecione ao menos ' + min + ' candidatos.'); return; }
+        if (max && state.selected.length > max) { setError('Para 2º turno, selecione exatamente ' + max + ' candidatos.'); return; }
 
         state.scope = currentScope();
         loading(true); setError('');
@@ -640,10 +706,27 @@
         var byId = {};
         state.candidates.forEach(function (c) { byId[c.id] = c; });
 
+        // Classificação conforme o cargo/turno (mesma regra do app web):
+        //  - Senado: os `elects` mais votados são eleitos.
+        //  - 2º turno: 1 eleito (o vencedor do confronto).
+        //  - 1º turno: eleito direto se o líder passa de 50%; senão, os 2
+        //    primeiros vão ao 2º turno.
+        var isSenate = state.hasRunoff === false;
         var elects = state.elects || 1;
+        var leaderPct = ranking.length ? (ranking[0].percentage || 0) : 0;
+        var firstRoundWin = !isSenate && state.turn === 1 && leaderPct > 50;
+        var classified = isSenate ? elects : ((state.turn === 2 || firstRoundWin) ? 1 : 2);
+        var singleWinner = isSenate ? false : (classified === 1);
+
         var html = '';
-        if (elects > 1) {
+        if (isSenate && elects > 1) {
             html += '<p class="projecao-calc__elected-note">Os ' + elects + ' mais votados são eleitos.</p>';
+        } else if (firstRoundWin) {
+            html += '<p class="projecao-calc__elected-note">Eleito no 1º turno: <strong>' + esc(ranking[0].name) + '</strong> (mais de 50% dos votos válidos).</p>';
+        } else if (singleWinner) {
+            html += '<p class="projecao-calc__elected-note">Vencedor projetado: <strong>' + esc((ranking[0] || {}).name || '—') + '</strong>.</p>';
+        } else if (!isSenate) {
+            html += '<p class="projecao-calc__elected-note">Os 2 primeiros são os classificados para o 2º turno.</p>';
         }
         html += '<ul class="projecao-calc__ranking">';
         ranking.forEach(function (r, idx) {
@@ -651,9 +734,10 @@
             var c = byId[r.candidate_id];
             var av = avatarHtml(c, 'projecao-calc__avatar--sm');
             var color = (c && c.color) ? c.color : (brandColor() || '#149ddd');
-            var elected = elects > 1 && idx < elects;
-            var badge = elected ? ' <span class="projecao-calc__badge">Eleito</span>' : '';
-            html += '<li' + (elected ? ' class="is-elected"' : '') + '>'
+            var isClassified = idx < classified;
+            var badgeText = (isSenate || singleWinner) ? 'Eleito' : '2º turno';
+            var badge = isClassified ? ' <span class="projecao-calc__badge">' + badgeText + '</span>' : '';
+            html += '<li' + (isClassified ? ' class="is-elected"' : '') + '>'
                 + '<div class="projecao-calc__rk-head"><strong>' + av + esc(r.name) + badge + '</strong>'
                 + '<span>' + (Math.round(r.percentage * 10) / 10) + '% · ' + formatInt(r.votes) + ' votos</span></div>'
                 + '<div class="projecao-calc__bar"><span style="width:' + w + '%;background:' + color + '"></span></div>'
@@ -735,7 +819,14 @@
                     .then(function (cs) { state.candidates = cs || []; })
                     .catch(function () { state.candidates = []; }));
                 jobs.push(api('/elections/' + electionId)
-                    .then(function (e) { state.elects = (e && (e.elects || e.seats)) ? (e.elects || e.seats) : 1; })
+                    .then(function (e) {
+                        var r = (e && e.rules) ? e.rules : {};
+                        state.elects = (r.elects || r.seats) ? (r.elects || r.seats) : ((e && (e.elects || e.seats)) || 1);
+                        state.hasRunoff = r.has_runoff !== false;
+                        // A projeção salva não guarda o turno; infere-se pelo nº de
+                        // candidatos (2 = 2º turno; 3+ = 1º), mesma regra da criação.
+                        state.turn = (state.hasRunoff && ranking.length === 2) ? 2 : 1;
+                    })
                     .catch(function () { state.elects = 1; }));
             }
             return Promise.all(jobs).then(function () {
@@ -1256,6 +1347,8 @@
             else if (n === '4') { goToProjectionStep(); }
         } else if (t.hasAttribute('data-pc-back')) {
             step(t.getAttribute('data-pc-back'));
+        } else if (t.closest && t.closest('[data-turn]')) {
+            onTurnClick(e);
         } else if (t.hasAttribute('data-pc-select-all')) {
             selectAllCandidates();
         } else if (t.hasAttribute('data-pc-clear')) {
