@@ -66,6 +66,8 @@ class Settings
         $footerText = isset($input['footer_text']) ? sanitize_hex_color($input['footer_text']) : $current['footer_text'];
         $shareText = isset($input['share_text']) ? sanitize_textarea_field($input['share_text']) : $current['share_text'];
 
+        $showCredit = ! empty($input['show_credit']);
+
         // Secret: campo em branco mantém o atual (não sobrescreve com vazio).
         $clientSecret = $current['client_secret'];
         if (isset($input['client_secret']) && trim($input['client_secret']) !== '') {
@@ -86,6 +88,7 @@ class Settings
             'footer_color' => $footerColor ? $footerColor : $this->defaults()['footer_color'],
             'footer_text' => $footerText ? $footerText : $this->defaults()['footer_text'],
             'share_text' => $shareText !== '' ? $shareText : $this->defaults()['share_text'],
+            'show_credit' => $showCredit,
         );
     }
 
@@ -121,6 +124,10 @@ class Settings
             'footer_color' => '#f4f7fb',
             'footer_text' => '#03172d',
             'share_text' => 'Veja a minha projeção eleitoral e faça a sua.',
+            // Credito no site publico: opt-in. As diretrizes do WordPress.org
+            // exigem permissao explicita para exibir creditos do autor no
+            // front-end, entao o padrao e nao exibir.
+            'show_credit' => false,
         );
     }
 
@@ -217,6 +224,19 @@ class Settings
      *
      * @return string
      */
+    /**
+     * Exibir o crédito do autor no site público? Opt-in, conforme as
+     * diretrizes do WordPress.org.
+     *
+     * @return bool
+     */
+    public function getShowCredit()
+    {
+        $all = $this->all();
+
+        return ! empty($all['show_credit']);
+    }
+
     public function getOrigin()
     {
         $all = $this->all();

@@ -112,6 +112,9 @@ if (!defined('ABSPATH')) {
     </section>
 
     <div class="projecao-calc__loading" data-pc-loading hidden><?php esc_html_e('Carregando…', 'projecao-eleitoral'); ?></div>
-    <p class="projecao-calc__credit"><?php esc_html_e('Powered by Fragoso Software', 'projecao-eleitoral'); ?></p>
-    <p class="projecao-calc__legal"><?php echo esc_html(\Fragososoftware\ProjecaoWp\Shortcode::FOOTER_LEGAL); ?></p>
+    <?php // Crédito do autor: só aparece se o administrador autorizar. ?>
+    <?php if (!empty($showCredit)) : ?>
+        <p class="projecao-calc__credit"><?php esc_html_e('Powered by Fragoso Software', 'projecao-eleitoral'); ?></p>
+        <p class="projecao-calc__legal"><?php echo esc_html(\Fragososoftware\ProjecaoWp\Shortcode::FOOTER_LEGAL); ?></p>
+    <?php endif; ?>
 </div>

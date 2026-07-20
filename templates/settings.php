@@ -66,6 +66,16 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
+                <th scope="row"><?php esc_html_e('Crédito do desenvolvedor', 'projecao-eleitoral'); ?></th>
+                <td>
+                    <label for="pc_show_credit">
+                        <input type="checkbox" name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[show_credit]" id="pc_show_credit" value="1" <?php checked(!empty($values['show_credit'])); ?>>
+                        <?php esc_html_e('Autorizo exibir "Powered by Fragoso Software" no rodapé da calculadora, no site público.', 'projecao-eleitoral'); ?>
+                    </label>
+                    <p class="description"><?php esc_html_e('Opcional e desativado por padrão. Nada é exibido no seu site sem esta autorização.', 'projecao-eleitoral'); ?></p>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><label for="pc_share_text"><?php esc_html_e('Texto do compartilhamento', 'projecao-eleitoral'); ?></label></th>
                 <td>
                     <textarea name="<?php echo esc_attr(\Fragososoftware\ProjecaoWp\Settings::OPTION); ?>[share_text]" id="pc_share_text" rows="3" class="large-text"><?php echo esc_textarea($values['share_text']); ?></textarea>

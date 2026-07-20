@@ -112,6 +112,7 @@ class Shortcode
 
         ob_start();
         $title = $atts['title'];
+        $showCredit = $this->settings->getShowCredit();
         include PROJECAO_WP_DIR . 'templates/calculator.php';
         return ob_get_clean();
     }

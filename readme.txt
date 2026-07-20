@@ -4,7 +4,7 @@ Tags: eleições, projeções, calculadora, simulação
 Requires at least: 5.6
 Tested up to: 6.6
 Requires PHP: 7.0
-Stable tag: 1.6.0
+Stable tag: 1.8.0
 License: Proprietary
 
 Calculadora de simulações e projeções eleitorais integrada ao seu tema. Basta informar o client_id e o client_secret da sua aplicação.
@@ -35,6 +35,12 @@ No painel da plataforma, em API → Aplicações. Cadastre os domínios do seu s
 Não. O SDK já vem embutido no plugin.
 
 == Changelog ==
+
+= 1.8.0 =
+* O credito "Powered by Fragoso Software" no site publico passa a ser opcional e vem DESATIVADO por padrao. Para exibi-lo, autorize em Configuracoes > Projecao Eleitoral.
+
+= 1.7.0 =
+* Seletor de turno (1o/2o) na etapa de candidatos, oculto quando a eleicao nao tem 2o turno.
 
 = 1.1.0 =
 * Mapa do Brasil proprio (br.svg) pintando a regiao/estado igual aos mapas estaduais; removida a dependencia brmap.js.
