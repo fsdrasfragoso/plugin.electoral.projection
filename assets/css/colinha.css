@@ -111,16 +111,13 @@
     color: #7c8b9c;
 }
 
+/* Um cartão embaixo do outro, na ordem da urna eletrônica. */
 .projecao-colinha__cartoes {
     display: grid;
     gap: 14px;
     margin-top: 18px;
-}
-
-@media (min-width: 820px) {
-    .projecao-colinha__cartoes {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 760px;
 }
 
 .projecao-colinha__cartao {
