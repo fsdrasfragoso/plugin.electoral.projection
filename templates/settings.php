@@ -93,6 +93,11 @@ if (!defined('ABSPATH')) {
         <span id="pc-test-result" style="margin-left:8px;"></span>
     </p>
     <p class="description"><?php esc_html_e('Use o shortcode', 'projecao-eleitoral'); ?> <code>[projecao_calculadora]</code> <?php esc_html_e('em qualquer página ou post.', 'projecao-eleitoral'); ?></p>
+    <p class="description">
+        <?php esc_html_e('Para a página Minha Colinha (o leitor anota o número de cada candidato, salva a imagem e compartilha), use', 'projecao-eleitoral'); ?>
+        <code>[projecao_colinha]</code>.
+        <?php esc_html_e('Aceita uf="CE" para já abrir num estado.', 'projecao-eleitoral'); ?>
+    </p>
 
     <script>
     (function () {

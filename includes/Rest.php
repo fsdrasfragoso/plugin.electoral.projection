@@ -134,6 +134,68 @@ class Rest
             },
         ));
 
+        // ---------------- Minha Colinha ----------------
+
+        register_rest_route(self::NS, '/colinha', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->cachedRun($r, 'colinha', function ($sdk) { return $sdk->colinha(); });
+            },
+        ));
+
+        register_rest_route(self::NS, '/colinha/cargos', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->cachedRun($r, 'colinha-cargos', function ($sdk) use ($r) {
+                    return $sdk->colinhaOffices((string) $r->get_param('uf'));
+                });
+            },
+        ));
+
+        register_rest_route(self::NS, '/colinha/candidato', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->cachedRun($r, 'colinha-candidato', function ($sdk) use ($r) {
+                    return $sdk->colinhaLookup(
+                        (string) $r->get_param('uf'),
+                        (string) $r->get_param('slot'),
+                        (string) $r->get_param('numero')
+                    );
+                });
+            },
+        ));
+
+        register_rest_route(self::NS, '/colinha/buscar', array(
+            'methods' => 'GET', 'permission_callback' => $public,
+            'callback' => function (WP_REST_Request $r) {
+                // Busca não entra em cache: o termo muda a cada tecla.
+                return $this->run(function ($sdk) use ($r) {
+                    return $sdk->colinhaSearch(
+                        (string) $r->get_param('uf'),
+                        (string) $r->get_param('slot'),
+                        (string) $r->get_param('q')
+                    );
+                });
+            },
+        ));
+
+        // O voto é anônimo, mas continua exigindo nonce: quem grava é o site.
+        register_rest_route(self::NS, '/colinha/urna', array(
+            'methods' => 'POST', 'permission_callback' => $write,
+            'callback' => function (WP_REST_Request $r) {
+                return $this->run(function ($sdk) use ($r) {
+                    $corpo = (array) $r->get_json_params();
+                    $escolhas = isset($corpo['escolhas']) && is_array($corpo['escolhas']) ? $corpo['escolhas'] : array();
+
+                    return $sdk->colinhaVote(
+                        isset($corpo['token']) ? (string) $corpo['token'] : '',
+                        isset($corpo['uf']) ? (string) $corpo['uf'] : '',
+                        array_map('intval', $escolhas)
+                    );
+                });
+            },
+        ));
+
         // Proxy de imagem (mesma origem): permite a foto do candidato entrar no
         // canvas da imagem de compartilhamento sem problema de CORS.
         register_rest_route(self::NS, '/asset', array(

@@ -22,5 +22,8 @@ class Plugin
 
         $shortcode = new Shortcode($settings);
         $shortcode->register();
+
+        $colinha = new ColinhaShortcode($settings);
+        $colinha->register();
     }
 }

@@ -4,7 +4,7 @@ Tags: eleições, projeções, calculadora, simulação
 Requires at least: 5.6
 Tested up to: 6.6
 Requires PHP: 7.0
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: Proprietary
 
 Calculadora de simulações e projeções eleitorais integrada ao seu tema. Basta informar o client_id e o client_secret da sua aplicação.
@@ -35,6 +35,10 @@ No painel da plataforma, em API → Aplicações. Cadastre os domínios do seu s
 Não. O SDK já vem embutido no plugin.
 
 == Changelog ==
+
+= 1.9.0 =
+* Novo item: Minha Colinha. Use o shortcode [projecao_colinha] para o leitor montar a cola com o numero de cada candidato, salvar a imagem e compartilhar.
+* A colinha fica salva no aparelho do leitor e funciona com o numero da urna ou busca pelo nome.
 
 = 1.8.0 =
 * O credito "Powered by Fragoso Software" no site publico passa a ser opcional e vem DESATIVADO por padrao. Para exibi-lo, autorize em Configuracoes > Projecao Eleitoral.

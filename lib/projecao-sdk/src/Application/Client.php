@@ -178,6 +178,76 @@ final class Client
     }
 
     // ---------------------------------------------------------------------
+    // Minha Colinha
+    // ---------------------------------------------------------------------
+
+    /**
+     * Textos, estados atendidos e contagem regressiva da colinha.
+     *
+     * @return array
+     */
+    public function colinha()
+    {
+        return $this->dataOf($this->get('/api/v1/colinha'));
+    }
+
+    /**
+     * Cargos que a colinha oferece na UF (só os que já têm candidato).
+     *
+     * @param string $uf
+     * @return array
+     */
+    public function colinhaOffices($uf)
+    {
+        return $this->dataOf($this->get('/api/v1/colinha/cargos', array('uf' => $uf)));
+    }
+
+    /**
+     * Candidato pelo número da urna.
+     *
+     * @param string $uf
+     * @param string $slot    cargo da colinha (ex.: governador, senador_1)
+     * @param string $number
+     * @return array|null
+     */
+    public function colinhaLookup($uf, $slot, $number)
+    {
+        return $this->dataOf($this->get('/api/v1/colinha/candidato', array(
+            'uf' => $uf, 'slot' => $slot, 'number' => $number,
+        )));
+    }
+
+    /**
+     * Busca de candidato pelo nome.
+     *
+     * @param string $uf
+     * @param string $slot
+     * @param string $term
+     * @return array
+     */
+    public function colinhaSearch($uf, $slot, $term)
+    {
+        return $this->dataOf($this->get('/api/v1/colinha/buscar', array(
+            'uf' => $uf, 'slot' => $slot, 'q' => $term,
+        )));
+    }
+
+    /**
+     * Registra o voto anônimo da colinha montada no site do cliente.
+     *
+     * @param string $token   identificador do aparelho (não identifica pessoa)
+     * @param string $uf
+     * @param array  $choices cargo => id do candidato
+     * @return array
+     */
+    public function colinhaVote($token, $uf, array $choices)
+    {
+        return $this->dataOf($this->post('/api/v1/colinha/urna', array(
+            'token' => $token, 'uf' => $uf, 'choices' => $choices,
+        )));
+    }
+
+    // ---------------------------------------------------------------------
     // Projeções
     // ---------------------------------------------------------------------
 
