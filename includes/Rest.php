@@ -179,9 +179,12 @@ class Rest
             },
         ));
 
-        // O voto é anônimo, mas continua exigindo nonce: quem grava é o site.
+        // O voto é anônimo e público de propósito: exigir nonce quebraria em
+        // portal com cache de página (o HTML cacheado serve um nonce velho e o
+        // voto seria recusado em silêncio). A escrita não expõe nada: a API só
+        // conta escolha de candidato, sem identificar quem escolheu.
         register_rest_route(self::NS, '/colinha/urna', array(
-            'methods' => 'POST', 'permission_callback' => $write,
+            'methods' => 'POST', 'permission_callback' => $public,
             'callback' => function (WP_REST_Request $r) {
                 return $this->run(function ($sdk) use ($r) {
                     $corpo = (array) $r->get_json_params();
