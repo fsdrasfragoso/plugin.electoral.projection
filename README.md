@@ -26,7 +26,7 @@ servidor. O front conversa apenas com o próprio WordPress (mesma origem + nonce
 2. Ative o plugin.
 3. **Configurações → Projeção Eleitoral**: informe `client_id` e `client_secret` e clique em **Testar conexão**.
 4. Use o shortcode **`[projecao_calculadora]`** em qualquer página/post.
-5. Para a **Minha Colinha**, use **`[projecao_colinha]`** (aceita `uf="CE"` para já abrir num estado).
+5. Para **Meus Candidatos**, use **`[projecao_meus_candidatos]`** (aceita `uf="CE"`; `[projecao_colinha]` segue valendo como nome antigo).
 
 ## Estrutura
 
@@ -38,16 +38,16 @@ includes/
   SdkClient.php            Monta o Client do SDK a partir das configurações
   Rest.php                 Proxy REST (projecao/v1) → SDK
   Shortcode.php            [projecao_calculadora] + enqueue de assets
-  ColinhaShortcode.php     [projecao_colinha] + enqueue de assets
+  ColinhaShortcode.php     [projecao_meus_candidatos] + enqueue de assets
 templates/
   settings.php             Tela de configurações
   calculator.php           Shell da calculadora
-  colinha.php              Shell da Minha Colinha
+  colinha.php              Shell de Meus Candidatos
 assets/
   js/calculator.js         Wizard (vanilla JS) — fala com o REST do WP
-  js/colinha.js            Minha Colinha (vanilla JS)
+  js/colinha.js            Meus Candidatos (vanilla JS)
   css/calculator.css       Estilos escopados (integram com o tema)
-  css/colinha.css          Estilos da Minha Colinha
+  css/colinha.css          Estilos de Meus Candidatos
 lib/projecao-sdk/          SDK PHP vendorizado (fragososoftware/projecao-sdk)
 ```
 

@@ -3,14 +3,19 @@
 namespace Fragososoftware\ProjecaoWp;
 
 /**
- * Shortcode [projecao_colinha] — a "Minha Colinha" dentro do site do cliente:
- * o leitor monta a cola com o número de cada candidato, salva a imagem e
+ * Shortcode [projecao_meus_candidatos] — a lista de candidatos do leitor dentro
+ * do site do cliente: ele anota o número de cada candidato, salva a imagem e
  * compartilha. Os dados vêm da API da Fragoso Software pelo proxy REST do
  * próprio WordPress, então o client_secret nunca vai ao navegador.
+ *
+ * [projecao_colinha] continua valendo como nome antigo.
  */
 class ColinhaShortcode
 {
-    const TAG = 'projecao_colinha';
+    const TAG = 'projecao_meus_candidatos';
+
+    /** Nome anterior, mantido para não quebrar páginas já publicadas. */
+    const TAG_LEGADO = 'projecao_colinha';
 
     /** @var Settings */
     private $settings;
@@ -26,6 +31,7 @@ class ColinhaShortcode
     public function register()
     {
         add_shortcode(self::TAG, array($this, 'render'));
+        add_shortcode(self::TAG_LEGADO, array($this, 'render'));
         add_action('wp_enqueue_scripts', array($this, 'registerAssets'));
     }
 

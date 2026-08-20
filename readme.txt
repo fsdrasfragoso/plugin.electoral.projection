@@ -37,8 +37,8 @@ Não. O SDK já vem embutido no plugin.
 == Changelog ==
 
 = 1.9.0 =
-* Novo item: Minha Colinha. Use o shortcode [projecao_colinha] para o leitor montar a cola com o numero de cada candidato, salvar a imagem e compartilhar.
-* A colinha fica salva no aparelho do leitor e funciona com o numero da urna ou busca pelo nome.
+* Novo item: Meus Candidatos. Use o shortcode [projecao_meus_candidatos] para o leitor montar a lista com o numero de cada candidato, salvar a imagem e compartilhar. O nome antigo [projecao_colinha] continua valendo.
+* A lista fica salva no aparelho do leitor e funciona com o numero da urna ou busca pelo nome.
 
 = 1.8.0 =
 * O credito "Powered by Fragoso Software" no site publico passa a ser opcional e vem DESATIVADO por padrao. Para exibi-lo, autorize em Configuracoes > Projecao Eleitoral.

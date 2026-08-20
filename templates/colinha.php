@@ -1,7 +1,7 @@
 <?php
 /**
- * Shell da Minha Colinha (renderizado pelo shortcode). O JS monta os cartões
- * de cada cargo a partir da API.
+ * Shell de "Meus Candidatos" (renderizado pelo shortcode). O JS monta os
+ * cartões de cada cargo a partir da API.
  *
  * @var string $title
  * @var bool   $showCredit
@@ -35,7 +35,7 @@ if (!defined('ABSPATH')) {
     <div class="projecao-colinha__erro" data-pcol-erro hidden></div>
 
     <div class="projecao-colinha__vazio" data-pcol-vazio>
-        <?php esc_html_e('Escolha o seu estado para montar a colinha.', 'projecao-eleitoral'); ?>
+        <?php esc_html_e('Escolha o seu estado para montar a sua lista.', 'projecao-eleitoral'); ?>
     </div>
 
     <div class="projecao-colinha__cartoes" data-pcol-cartoes></div>
@@ -66,7 +66,7 @@ if (!defined('ABSPATH')) {
 
     <div class="projecao-colinha__modal" data-pcol-modal hidden>
         <div class="projecao-colinha__modal-caixa">
-            <h3><?php esc_html_e('Copie sua colinha', 'projecao-eleitoral'); ?></h3>
+            <h3><?php esc_html_e('Copie a sua lista', 'projecao-eleitoral'); ?></h3>
             <p><?php esc_html_e('Selecione o texto abaixo e copie para compartilhar:', 'projecao-eleitoral'); ?></p>
             <textarea rows="9" readonly data-pcol-modal-texto></textarea>
             <button type="button" class="projecao-colinha__btn" data-pcol-modal-fechar>

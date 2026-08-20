@@ -1,5 +1,5 @@
 /**
- * Minha Colinha — versão do plugin WordPress.
+ * Meus Candidatos — versão do plugin WordPress.
  *
  * Fala apenas com o proxy REST do próprio WordPress (mesma origem, com nonce);
  * o client_secret fica no servidor. O voto vai para a urna da API de forma
@@ -453,7 +453,7 @@
     });
 
     raiz.querySelector('[data-pcol-zerar]').addEventListener('click', function () {
-        if (!window.confirm('Apagar toda a colinha deste aparelho?')) return;
+        if (!window.confirm('Apagar toda a sua lista deste aparelho?')) return;
         estado.escolhas = {};
         guardar();
         registrarVoto();
@@ -509,7 +509,7 @@
             estado.textos = dados || {};
 
             if (!el.titulo.textContent.trim()) {
-                el.titulo.textContent = dados.title || 'Minha Colinha';
+                el.titulo.textContent = dados.title || 'Meus Candidatos';
             }
 
             el.sub.textContent = dados.subtitle || '';
